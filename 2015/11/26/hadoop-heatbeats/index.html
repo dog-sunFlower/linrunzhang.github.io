@@ -1,107 +1,116 @@
 
- <!DOCTYPE HTML>
-<html >
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   
-    <title>hadoop heatbeats | FrankLin&#39;s World</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
-    
-    <meta name="author" content="linrunzhang">
-    
-    <meta name="description" content="hadoop的心跳过程：
+  <title>hadoop heatbeats | FrankLin&#39;s World</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="hadoop的心跳过程：
 1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
-2、找到心跳">
-    
-    
-    
-    
-    
-    <link rel="icon" href="/img/favicon.ico">
-    
-    
-    <link rel="apple-touch-icon" href="/img/pacman.jpg">
-    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
-    
-    <link rel="stylesheet" href="/css/style.css" type="text/css">
+2、找到心跳的代码
+拿namenode和datanode来说，在datanode的offerService方法中">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hadoop heatbeats">
+<meta property="og:url" content="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/index.html">
+<meta property="og:site_name" content="FrankLin's World">
+<meta property="og:description" content="hadoop的心跳过程：
+1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
+2、找到心跳的代码
+拿namenode和datanode来说，在datanode的offerService方法中">
+<meta property="og:updated_time" content="2015-11-26T04:02:42.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="hadoop heatbeats">
+<meta name="twitter:description" content="hadoop的心跳过程：
+1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
+2、找到心跳的代码
+拿namenode和datanode来说，在datanode的offerService方法中">
+  
+    <link rel="alternative" href="/atom.xml" title="FrankLin&#39;s World" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link rel="stylesheet" href="/css/style.css" type="text/css">
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <!--[if lt IE 9]><script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7/html5shiv.min.js"></script><![endif]-->
+  
 </head>
-
-  <body>
-    <header>
-      <div>
-		
-			<div id="imglogo">
-				<a href="/"><img src="/img/logo.svg" alt="FrankLin&#39;s World" title="FrankLin&#39;s World"/></a>
-			</div>
-			
-			<div id="textlogo">
-				<h1 class="site-name"><a href="/" title="FrankLin&#39;s World">FrankLin&#39;s World</a></h1>
-				<h2 class="blog-motto"></h2>
-			</div>
-			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜單">
-			</a></div>
-			<nav class="animated">
-				<ul>
-					
-						<li><a href="/">Home</a></li>
-					
-						<li><a href="/archives">Archives</a></li>
-					
-					<li>
-					
-					<form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
-						<label>Search</label>
-						<input type="text" id="search" name="q" autocomplete="off" maxlength="20" placeholder="搜索" />
-						<input type="hidden" name="q" value="site:linrunzhang.github.io">
-					</form>
-					
-					</li>
-				</ul>
-			</nav>			
-</div>
-
-    </header>
-    <div id="container">
-      <div id="main" class="post" itemscope itemprop="blogPost">
-	<article itemprop="articleBody"> 
-		<header class="article-info clearfix">
-  <h1 itemprop="name">
-    
-      <a href="/2015/11/26/hadoop-heatbeats/" title="hadoop heatbeats" itemprop="url">hadoop heatbeats</a>
-  </h1>
-  <p class="article-author">By
-    
-      <a href="http://linrunzhang.github.io" title="linrunzhang">linrunzhang</a>
-    </p>
-  <p class="article-time">
-    <time datetime="2015-11-26T02:52:36.000Z" itemprop="datePublished">2015-11-26</time>
-    更新日期:<time datetime="2015-11-26T03:04:04.000Z" itemprop="dateModified">2015-11-26</time>
-    
-  </p>
+<body>
+<div id="container">
+  <div id="wrap">
+    <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">FrankLin&#39;s World</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="http://www.baidu.com/baidu" method="get" accept-charset="utf-8" class="search-form">
+          <input type="search" name="word" maxlength="20" class="search-form-input" placeholder="Search">
+          <input type="submit" value="" class="search-form-submit">
+          <input name=tn type=hidden value="bds">
+          <input name=cl type=hidden value="3">
+          <input name=ct type=hidden value="2097152">
+          <input type="hidden" name="si" value="linrunzhang.github.io">
+        </form>
+      </div>
+    </div>
+  </div>
 </header>
-	<div class="article-content">
-		
-		
-		<div id="toc" class="toc-article">
-			<strong class="toc-title">文章目錄</strong>
-		
-		</div>
-		
-		<p>hadoop的心跳过程：</p>
+    <div class="outer">
+      <section id="main"><article id="post-hadoop-heatbeats" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/11/26/hadoop-heatbeats/" class="article-date">
+  <time datetime="2015-11-26T02:52:36.000Z" itemprop="datePublished">2015-11-26</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      hadoop heatbeats
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>hadoop的心跳过程：</p>
 <p>1) master启动的时候，会开一个ipc server在那里。<br>2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
 <p>2、找到心跳的代码</p>
 <p>拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
-<p>[java] view plaincopy<br>/** </p>
+<p>  /** </p>
 <ul>
 <li>Main loop for the DataNode.  Runs until shutdown, </li>
-<li><p>forever calling remote NameNode functions.<br>*/<br>public void offerService() throws Exception {  </p>
-<p>…  </p>
-<p>//<br>// Now loop for a long time….<br>//  </p>
-<p>while (shouldRun) {<br> try {<br>   long startTime = now();  </p>
+<li><p>forever calling remote NameNode functions.<br>*/<br>public void offerService() throws Exception {<br>…<br>//<br>// Now loop for a long time….<br>//<br>while (shouldRun) {<br> try {<br>   long startTime = now();  </p>
 <p>   //<br>   // Every so often, send heartbeat or block-report<br>   //  </p>
 </li>
 </ul>
-<p>// 如果到了3秒钟，就向namenode发心跳<br>       if (startTime - lastHeartbeat &gt; heartBeatInterval) {<br>         //<br>         // All heartbeat messages include following info:<br>         // – Datanode name<br>         // – data transfer port<br>         // – Total capacity<br>         // – Bytes remaining<br>         //<br>         lastHeartbeat = startTime;<br>         DatanodeCommand[] cmds = namenode.sendHeartbeat(dnRegistration,<br>                                                      data.getCapacity(),<br>                                                      data.getDfsUsed(),<br>                                                      data.getRemaining(),<br>                                                      xmitsInProgress.get(),<br>                                                      getXceiverCount());  </p>
+<p>// 如果到了3秒钟，就向namenode发心跳<br>    if (startTime - lastHeartbeat &gt; heartBeatInterval) {<br>       //<br>       // All heartbeat messages include following info:<br>       // – Datanode name<br>       // – data transfer port<br>       // – Total capacity<br>       // – Bytes remaining<br>       //<br>       lastHeartbeat = startTime;<br>       DatanodeCommand[] cmds = namenode.sendHeartbeat(dnRegistration,<br>                                                    data.getCapacity(),<br>                                                    data.getDfsUsed(),<br>                                                    data.getRemaining(),<br>                                                    xmitsInProgress.get(),<br>                                                    getXceiverCount());  </p>
 <p>  // 注意上面这行代码，“发送心跳”竟然就是调用namenode的一个方法？？  </p>
 <pre><code>myMetrics.heartbeats.inc(<span class="built_in">now</span>() - startTime)<span class="comment">;  </span>
 //<span class="built_in">LOG</span>.info(<span class="string">"Just sent heartbeat, with name "</span> + localName)<span class="comment">;  </span>
@@ -112,18 +121,18 @@
 <p>下面我们主要就来分析这个方法调用的细节。</p>
 <p>3、心跳的底层细节一：datanode怎么获得namenode对象的？</p>
 <p>首先，DataNode类中，有一个namenode的成员变量：</p>
-<p>[java] view plaincopy<br>public class DataNode extends Configured<br>    implements InterDatanodeProtocol, ClientDatanodeProtocol, FSConstants, Runnable {<br>  …<br>  public DatanodeProtocol namenode = null;<br>  …<br>}  </p>
+<p>public class DataNode extends Configured<br>    implements InterDatanodeProtocol, ClientDatanodeProtocol, FSConstants, Runnable {<br>  …<br>  public DatanodeProtocol namenode = null;<br>  …<br>}  </p>
 <p>下面是NameNode类的定义：</p>
-<p>[java] view plaincopy<br>public class NameNode implements ClientProtocol, DatanodeProtocol,<br>                                 NamenodeProtocol, FSConstants,<br>                                 RefreshAuthorizationPolicyProtocol {<br>  …<br>}  </p>
+<p>public class NameNode implements ClientProtocol, DatanodeProtocol,<br>                                 NamenodeProtocol, FSConstants,<br>                                 RefreshAuthorizationPolicyProtocol {<br>  …<br>}  </p>
 <p>注意：NameNode实现了DatanodeProtocol接口，DatanodeProtocol接口定义了namenode和datanode之间通信的方法。</p>
 <p>那么，DataNode类是怎么获取到NameNode类的引用呢？</p>
 <p>在Datanode端，为namenode变量赋值的代码：</p>
-<p>[java] view plaincopy<br>// connect to name node<br>this.namenode = (DatanodeProtocol)<br>  RPC.waitForProxy(DatanodeProtocol.class,<br>                   DatanodeProtocol.versionID,<br>                   nameNodeAddr,<br>                   conf);  </p>
+<p>// connect to name node<br>this.namenode = (DatanodeProtocol)<br>  RPC.waitForProxy(DatanodeProtocol.class,<br>                   DatanodeProtocol.versionID,<br>                   nameNodeAddr,<br>                   conf);  </p>
 <p>在继续去RPC类中追踪：在继续去RPC类中追踪：</p>
-<p>[java] view plaincopy<br>VersionedProtocol proxy =<br>        (VersionedProtocol) Proxy.newProxyInstance(<br>            protocol.getClassLoader(), new Class[] { protocol },<br>            new Invoker(addr, ticket, conf, factory));  </p>
+<p>VersionedProtocol proxy =<br>        (VersionedProtocol) Proxy.newProxyInstance(<br>            protocol.getClassLoader(), new Class[] { protocol },<br>            new Invoker(addr, ticket, conf, factory));  </p>
 <p>现在，明白了！<br>1) 对namenode的赋值，并不是真正的new了一个实现了DatanodeProtocol接口的对象，而是获得了一个动态代理！！<br>2) 上面这段代码中，protocol的类型是DatanodeProtocol.class<br>3) 对namenode的所有调用，都被委托(delegate)给了Invoker<br>现在，明白了！<br>1) 对namenode的赋值，并不是真正的new了一个实现了DatanodeProtocol接口的对象，而是获得了一个动态代理！！<br>2) 上面这段代码中，protocol的类型是DatanodeProtocol.class<br>3) 对namenode的所有调用，都被委托(delegate)给了Invoker<br>4、心跳的底层细节二：看看Invoker类<br>Invoker类是org.apache.hadoop.ipc.RPC类的一个静态内部类：<br>[java] view plaincopy<br>private static class Invoker implements InvocationHandler {  </p>
 <p>所有的方法调用又被delegate给client的call方法了！</p>
-<p>[java] view plaincopy<br>public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {<br>            …  </p>
+<p>public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {<br>            …  </p>
 <pre><code>   <span class="type">ObjectWritable</span> value = (<span class="type">ObjectWritable</span>)  
      client.call(new <span class="type">Invocation</span>(<span class="keyword">method</span>, args), address,   
                  <span class="keyword">method</span>.getDeclaringClass(), ticket);  
@@ -136,9 +145,7 @@
 <p>Invocation类是org.apache.hadoop.ipc.RPC类的一个静态内部类</p>
 <p>没有什么业务逻辑方法，主要作用就是一个VO</p>
 <p>6、心跳的底层细节四：client类的call方法</p>
-<p>接下来重点看client类的call方法：</p>
-<p>[java] view plaincopy<br>public Writable call(Writable param, InetSocketAddress addr,<br>                     Class&lt;?&gt; protocol, UserGroupInformation ticket)<br>                     throws InterruptedException, IOException {  </p>
-<p>  Call call = new Call(param);<br>// 将Invocation转化为Call<br>  Connection connection = getConnection(addr, protocol, ticket, call);<br>// 连接远程服务器<br>  connection.sendParam(call);                 // send the parameter<br>// 将“序列化”后的call发给过去<br>  boolean interrupted = false;<br>  synchronized (call) {<br>    while (!call.done) {<br>      try {<br>        call.wait();                           // wait for the result<br>// 等待调用结果<br>      } catch (InterruptedException ie) {<br>        // save the fact that we were interrupted<br>        interrupted = true;<br>      }<br>    }  </p>
+<p>接下来重点看client类的call方法：<br> public Writable call(Writable param, InetSocketAddress addr,Class&lt;?&gt; protocol, UserGroupInformation ticket)<br>                     throws InterruptedException, IOException {<br>  Call call = new Call(param);<br>// 将Invocation转化为Call<br>  Connection connection = getConnection(addr, protocol, ticket, call);<br>// 连接远程服务器<br>  connection.sendParam(call);                 // send the parameter<br>// 将“序列化”后的call发给过去<br>  boolean interrupted = false;<br>  synchronized (call) {<br>    while (!call.done) {<br>      try {<br>        call.wait();                           // wait for the result<br>// 等待调用结果<br>      } catch (InterruptedException ie) {<br>        // save the fact that we were interrupted<br>        interrupted = true;<br>      }<br>    }  </p>
 <pre><code><span class="keyword">if</span> (interrupted) {  
   <span class="comment">// set the interrupt flag now that we are done waiting  </span>
   Thread.currentThread().interrupt();  
@@ -155,15 +162,15 @@
   <span class="keyword">return</span> <span class="keyword">call</span>.value;  
 </code></pre><p>// 返回<br>    }<br>  }<br>}  </p>
 <p>7、现在，一目了然了</p>
-<p>[java] view plaincopy<br>datanode向namenode发送heartbeat过程是这样的：  </p>
+<p>datanode向namenode发送heartbeat过程是这样的：  </p>
 <pre><code><span class="title">a</span>) 在datanode初始化获得namenode的proxy  
 <span class="title">b</span>) 在datanode上，调用namenode proxy的heartbeat方法：  
     namenode.sendHeartbeat(dnRegistration,  
-                                                   <span class="typedef"><span class="keyword">data</span>.getCapacity<span class="container">()</span>,  </span>
-                                                   <span class="typedef"><span class="keyword">data</span>.getDfsUsed<span class="container">()</span>,  </span>
-                                                   <span class="typedef"><span class="keyword">data</span>.getRemaining<span class="container">()</span>,  </span>
-                                                   xmitsInProgress.get(),  
-                                                   getXceiverCount());  
+                           <span class="typedef"><span class="keyword">data</span>.getCapacity<span class="container">()</span>,  </span>
+                           <span class="typedef"><span class="keyword">data</span>.getDfsUsed<span class="container">()</span>,  </span>
+                           <span class="typedef"><span class="keyword">data</span>.getRemaining<span class="container">()</span>,  </span>
+                           xmitsInProgress.get(),  
+                           getXceiverCount());  
 <span class="title">c</span>) 在datanode上的namenode动态代理类将这个调用包装成(或者叫“序列化成”)一个<span class="type">Invocation</span>对象，并调用client.call方法  
 <span class="title">d</span>) client call方法将<span class="type">Invocation</span>转化为<span class="type">Call</span>对象  
 <span class="title">e</span>) client 将call发送到真正的namenode服务器  
@@ -184,194 +191,209 @@
 <p>DataNodes are marked as stale if it does not send heartbeat message to NameNode within the timeout configured using the configuration parameter “dfs.namenode.stale.datanode.interval” in seconds (default value is 30 seconds). </p>
 <p>dfs.namenode.stale.datanode.interval = 30000<br>而且默认情况下这个stale特性是关闭的，还需要把<br>dfs.namenode.check.stale.datanode = true<br>只有把这两项都配置上去，再结合上面的heartbeat才能正常work，否则的话就把dfs.heartbeat.recheck.interval设置成30秒以上吧。因为如果时间太多，那么对于NN来说是要不断更新状态的，负载太高。可以看一段dfs.namenode.stale.datanode.interval的说明</p>
 <p>Default time interval for marking a datanode as “stale”, i.e., if the namenode has not received heartbeat msg from a datanode for more than this time interval, the datanode will be marked and treated as “stale” by default. The stale interval cannot be too small since otherwise this may cause too frequent change of stale states. We thus set a minimum stale interval value (the default value is 3 times of heartbeat interval) and guarantee that the stale interval cannot be less than the minimum value. A stale data node is avoided during lease/block recovery. It can be conditionally avoided for reads (see dfs.namenode.avoid.read.stale.datanode) and for writes (see dfs.namenode.avoid.write.stale.datanode).</p>
-  
-	</div>
-		<footer class="article-footer clearfix">
 
+      
+    </div>
+    <footer class="article-footer">
+      
+        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihfpivg30000c3ynuvgbics6" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
+      
 
+      
 
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hadoop-deep-learning/">hadoop deep learning</a></li></ul>
 
-<div class="article-share" id="share">
-
-  <div data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-title="hadoop heatbeats | FrankLin&#39;s World" data-tsina="null" class="share clearfix">
+    </footer>
   </div>
-
-</div>
-</footer>   	       
-	</article>
-	
-<nav class="article-nav clearfix">
- 
-
-<div class="next">
-<a href="/2015/11/26/hello-world/"  title="Hello World">
- <strong>NEXT:</strong><br/> 
- <span>Hello World
-</span>
-</a>
-</div>
-
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2015/11/26/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">Hello World</div>
+    </a>
+  
 </nav>
 
-	
-</div>  
-      <div class="openaside"><a class="navbutton" href="#" title="顯示側邊欄"></a></div>
-
-  <div id="toc" class="toc-aside">
-  <strong class="toc-title">文章目錄</strong>
   
+</article>
+
+</section>
+      
+      <aside id="sidebar">
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">標簽</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/hadoop-deep-learning/">hadoop deep learning</a><span class="tag-list-count">1</span></li></ul>
+    </div>
   </div>
 
-<div id="asidepart">
-<div class="closeaside"><a class="closebutton" href="#" title="隱藏側邊欄"></a></div>
-<aside class="clearfix">
-
   
-
-  
-
-  <div class="rsspart">
-	<a href="null" target="_blank" title="rss">RSS 訂閱</a>
-</div>
-
-</aside>
-</div>
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">標簽雲</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/hadoop-deep-learning/" style="font-size: 10px;">hadoop deep learning</a>
     </div>
-    <footer><div id="footer" >
-	
-	<div class="line">
-		<span></span>
-		<div class="author"></div>
-	</div>
-	
-	
-	<div class="social-font clearfix">
-		
-		
-		
-		
-		
-	</div>
-		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/A-limon/pacman" target="_blank" title="Pacman">Pacman</a> © 2015 
-		
-		<a href="http://linrunzhang.github.io" target="_blank" title="linrunzhang">linrunzhang</a>
-		
-		</p>
-</div>
-</footer>
-    <script src="/js/jquery-2.1.0.min.js"></script>
-<script type="text/javascript">
-$(document).ready(function(){ 
-  $('.navbar').click(function(){
-    $('header nav').toggleClass('shownav');
-  });
-  var myWidth = 0;
-  function getSize(){
-    if( typeof( window.innerWidth ) == 'number' ) {
-      myWidth = window.innerWidth;
-    } else if( document.documentElement && document.documentElement.clientWidth) {
-      myWidth = document.documentElement.clientWidth;
-    };
-  };
-  var m = $('#main'),
-      a = $('#asidepart'),
-      c = $('.closeaside'),
-      o = $('.openaside');
-  $(window).resize(function(){
-    getSize(); 
-    if (myWidth >= 1024) {
-      $('header nav').removeClass('shownav');
-    }else
-    {
-      m.removeClass('moveMain');
-      a.css('display', 'block').removeClass('fadeOut');
-      o.css('display', 'none');
-      
-      $('#toc.toc-aside').css('display', 'none');
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">歸檔</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/11/">November 2015</a><span class="archive-list-count">2</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">近期文章</h3>
+    <div class="widget">
+      <ul>
         
+          <li>
+            <a href="/2015/11/26/hadoop-heatbeats/">hadoop heatbeats</a>
+          </li>
+        
+          <li>
+            <a href="/2015/11/26/hello-world/">Hello World</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">友情鏈接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://linrunzhang.github.io" target="_blank">主题作者</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2015 linrunzhang<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+      .
+      Theme by <a href="https://github.com/xiangming/landscape-plus" target="_blank">Landscape-plus</a>
+    </div>
+  </div>
+</footer>
+  </div>
+  <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+  <!-- totop start -->
+<div id="totop">
+<a title="返回頂部"><img src="/img/scrollup.png"/></a>
+</div>
+
+<!-- totop end -->
+
+
+<!-- 百度分享 start -->
+
+<div id="article-share-box" class="article-share-box">
+  <div id="bdshare" class="bdsharebuttonbox article-share-links">
+    <a class="article-share-weibo" data-cmd="tsina" title="分享到新浪微博"></a>
+    <a class="article-share-weixin" data-cmd="weixin" title="分享到微信"></a>
+    <a class="article-share-qq" data-cmd="sqq" title="分享到QQ"></a>
+    <a class="article-share-renren" data-cmd="renren" title="分享到人人网"></a>
+    <a class="article-share-more" data-cmd="more" title="更多"></a>
+  </div>
+</div>
+<script>
+  function SetShareData(cmd, config) {
+    if (shareDataTitle && shareDataUrl) {
+      config.bdText = shareDataTitle;
+      config.bdUrl = shareDataUrl;
     }
-  });
-  c.click(function(){
-    a.addClass('fadeOut').css('display', 'none');
-    o.css('display', 'block').addClass('fadeIn');
-    m.addClass('moveMain');
-  });
-  o.click(function(){
-    o.css('display', 'none').removeClass('beforeFadeIn');
-    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
-    m.removeClass('moveMain');
-  });
-  $(window).scroll(function(){
-    o.css("top",Math.max(80,260-$(this).scrollTop()));
-  });
-});
+    return config;
+  }
+  window._bd_share_config={
+    "common":{onBeforeClick: SetShareData},
+    "share":{"bdCustomStyle":"/css/bdshare.css"}
+  };
+  with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?cdnversion='+~(-new Date()/36e5)];
 </script>
 
-<script type="text/javascript">
-$(document).ready(function(){ 
-  var ai = $('.article-content>iframe'),
-      ae = $('.article-content>embed'),
-      t  = $('#toc'),
-      h  = $('article h2')
-      ah = $('article h2'),
-      ta = $('#toc.toc-aside'),
-      o  = $('.openaside'),
-      c  = $('.closeaside');
-  if(ai.length>0){
-    ai.wrap('<div class="video-container" />');
-  };
-  if(ae.length>0){
-   ae.wrap('<div class="video-container" />');
-  };
-  if(ah.length==0){
-    t.css('display','none');
-  }else{
-    c.click(function(){
-      ta.css('display', 'block').addClass('fadeIn');
-    });
-    o.click(function(){
-      ta.css('display', 'none');
-    });
-    $(window).scroll(function(){
-      ta.css("top",Math.max(140,320-$(this).scrollTop()));
-    });
-  };
-});
+<!-- 百度分享 end -->
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css" type="text/css">
+  <script src="/fancybox/jquery.fancybox.pack.js" type="text/javascript"></script>
+
+
+
+<! -- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+                processEscapes: true
+                    
+}
+  
+        });
 </script>
 
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+                  
+}
+    
+        });
+</script>
 
-<script type="text/javascript">
-$(document).ready(function(){ 
-  var $this = $('.share'),
-      url = $this.attr('data-url'),
-      encodedUrl = encodeURIComponent(url),
-      title = $this.attr('data-title'),
-      tsina = $this.attr('data-tsina');
-  var html = [
-  '<a href="#" class="overlay" id="qrcode"></a>',
-  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
-  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
-  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
-  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
-  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
-  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
-  '<span title="Share to"></span>'
-  ].join('');
-  $this.append(html);
-  $('.article-share-qrcode').click(function(){
-    var imgSrc = $('#qrcode-pic').attr('data-src');
-    $('#qrcode-pic').attr('src', imgSrc);
-    $('#qrcode-pic').load(function(){
-        $('.qrcode strong').text(' ');
-    });
-  });
-});     
+<script type="text/x-mathjax-config">
+MathJax.Hub.Queue(function() {
+            var all = MathJax.Hub.getAllJax(), i;
+            for(i=0; i < all.length; i += 1) {
+                            all[i].SourceElement().parentNode.className += ' has-jax';
+                                    
+            }
+                
+        });
+</script>
+
+<script type="text/javascript" src="http://cdn.bootcss.com/mathjax/2.5.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 
 
+<script src="/js/script.js" type="text/javascript"></script>
 
-
-
-
-  </body>
+</div>
+</body>
 </html>
