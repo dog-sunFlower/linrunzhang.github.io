@@ -24,7 +24,7 @@ public FSDataInputStream open(Path f, int bufferSize) throws IOException {
 return new DFSClient.DFSDataInp">
 <meta property="og:image" content="https://github.com/linrunzhang/linrunzhang.github.io/blob/master/resource/hadoop_read.png">
 <meta property="og:image" content="https://github.com/linrunzhang/linrunzhang.github.io/blob/master/resource/hadoop_write.png">
-<meta property="og:updated_time" content="2015-11-26T05:44:40.000Z">
+<meta property="og:updated_time" content="2015-11-26T05:51:11.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="hadoop 读写分析">
 <meta name="twitter:description" content="一、文件的打开
@@ -134,67 +134,91 @@ String src, <span class="keyword">long</span> start, <span class="keyword">long<
 </code></pre><p>LocatedBlocks主要包含一个链表的List<locatedblock> blocks，其中每个LocatedBlock包含如下信息：</locatedblock></p>
 <p>Block b：此block的信息<br>long offset：此block在文件中的偏移量<br>DatanodeInfo[] locs：此block位于哪些DataNode上<br>上面namenode.getBlockLocations是一个RPC调用，最终调用NameNode类的getBlockLocations函数。</p>
 <p>1.2、NameNode<br>NameNode.getBlockLocations实现如下：</p>
-<p>public LocatedBlocks   getBlockLocations(String src,</p>
-<pre><code><span class="keyword">long</span> <span class="built_in">offset</span>,
+<pre><code><span class="keyword">public</span> <span class="function">LocatedBlocks   <span class="title">getBlockLocations</span><span class="params">(String src,
 
-<span class="keyword">long</span> <span class="built_in">length</span>) throws IOException {
-</code></pre><p>  return namesystem.getBlockLocations(getClientMachine(),</p>
-<pre><code>src, <span class="command">offset</span>, <span class="property">length</span>);
+                                    <span class="keyword">long</span> offset,
+
+                                    <span class="keyword">long</span> length)</span> <span class="keyword">throws</span> IOException </span>{
+
+<span class="keyword">return</span> namesystem.getBlockLocations(getClientMachine(),
+
+                                  src, offset, length);
 </code></pre><p>}</p>
 <p>namesystem是NameNode一个成员变量，其类型为FSNamesystem，保存的是NameNode的name space树，其中一个重要的成员变量为FSDirectory dir。</p>
 <p>FSDirectory和Lucene中的FSDirectory没有任何关系，其主要包括FSImage fsImage，用于读写硬盘上的fsimage文件，FSImage类有成员变量FSEditLog editLog，用于读写硬盘上的edit文件，这两个文件的关系在上一篇文章中已经解释过。</p>
 <p>FSDirectory还有一个重要的成员变量INodeDirectoryWithQuota rootDir，INodeDirectoryWithQuota的父类为INodeDirectory，实现如下：</p>
-<p>public class INodeDirectory extends INode {</p>
-<p>  ……</p>
-<p>  private List<inode> children;</inode></p>
-<p>  ……</p>
-<p>｝</p>
-<p>由此可见INodeDirectory本身是一个INode，其中包含一个链表的INode，此链表中，如果仍为文件夹，则是类型INodeDirectory，如果是文件，则是类型INodeFile，INodeFile中有成员变量BlockInfo blocks[]，是此文件包含的block的信息。显然这是一棵树形的结构。</p>
+<pre><code>public <span class="class"><span class="keyword">class</span> <span class="title">INodeDirectory</span> <span class="keyword"><span class="keyword">extends</span></span> <span class="title">INode</span> {</span>
+
+ ……
+
+<span class="keyword">private</span> <span class="type">List</span>&lt;<span class="type">INode</span>&gt; children;
+
+ ……
+
+｝
+</code></pre><p>由此可见INodeDirectory本身是一个INode，其中包含一个链表的INode，此链表中，如果仍为文件夹，则是类型INodeDirectory，如果是文件，则是类型INodeFile，INodeFile中有成员变量BlockInfo blocks[]，是此文件包含的block的信息。显然这是一棵树形的结构。</p>
 <p>FSNamesystem.getBlockLocations函数如下：</p>
-<p>public LocatedBlocks getBlockLocations(String src, long offset, long length,</p>
-<pre><code><span class="keyword">boolean</span> doAccessTime) <span class="keyword">throws</span> IOException {
-</code></pre><p>  final LocatedBlocks ret = getBlockLocationsInternal(src, dir.getFileINode(src),</p>
-<pre><code><span class="command">offset</span>, <span class="property">length</span>, Integer.MAX_VALUE, doAccessTime); 
-</code></pre><p>  return ret;</p>
-<p>}</p>
-<p>dir.getFileINode(src)通过路径名从文件系统树中找到INodeFile，其中保存的是要打开的文件的INode的信息。</p>
-<p>getBlockLocationsInternal的实现如下：</p>
-<p>private synchronized LocatedBlocks getBlockLocationsInternal(String src,</p>
-<pre><code>INodeFile inode,
+<pre><code><span class="keyword">public</span> <span class="function">LocatedBlocks <span class="title">getBlockLocations</span><span class="params">(String src, <span class="keyword">long</span> offset, <span class="keyword">long</span> length,
 
-<span class="keyword">long</span> offset,
+<span class="keyword">boolean</span> doAccessTime)</span> <span class="keyword">throws</span> IOException </span>{
 
-<span class="keyword">long</span> length,
+<span class="keyword">final</span> LocatedBlocks ret = getBlockLocationsInternal(src, dir.getFileINode(src),
 
-<span class="keyword">int</span> nrBlocksToReturn,
+                 offset, length, Integer.MAX_VALUE, doAccessTime); 
+<span class="keyword">return</span> ret;
 
-<span class="keyword">boolean</span> doAccessTime)
-
-<span class="keyword">throws</span> IOException {
-</code></pre><p>  //得到此文件的block信息</p>
-<p>  Block[] blocks = inode.getBlocks();</p>
-<p>  List<locatedblock> results = new ArrayList<locatedblock>(blocks.length);</locatedblock></locatedblock></p>
-<p>  //计算从offset开始，长度为length所涉及的blocks</p>
-<p>  int curBlk = 0;</p>
-<p>  long curPos = 0, blkSize = 0;</p>
-<p>  int nrBlocks = (blocks[0].getNumBytes() == 0) ? 0 : blocks.length;</p>
-<p>  for (curBlk = 0; curBlk &lt; nrBlocks; curBlk++) {</p>
-<pre><code><span class="keyword">blkSize </span>= <span class="keyword">blocks[curBlk].getNumBytes();
-</span>
-<span class="label">if</span> (curPos + <span class="keyword">blkSize </span>&gt; offset) {
-
-  //当offset在curPos和curPos + <span class="keyword">blkSize之间的时候，curBlk指向offset所在的block
-</span>
-  <span class="keyword">break;
-</span>
 }
+</code></pre><p>dir.getFileINode(src)通过路径名从文件系统树中找到INodeFile，其中保存的是要打开的文件的INode的信息。</p>
+<p>getBlockLocationsInternal的实现如下：</p>
+<pre><code><span class="function"><span class="keyword">private</span> synchronized LocatedBlocks <span class="title">getBlockLocationsInternal</span><span class="params">(String src,
 
-<span class="label">curPos</span> += <span class="keyword">blkSize;</span>
-</code></pre><p>  }</p>
-<p>  long endOff = offset + length;</p>
-<p>  //循环，依次遍历从curBlk开始的每个block，直到当前位置curPos越过endOff</p>
-<p>  do {</p>
-<pre><code><span class="label">int</span> numNodes = <span class="keyword">blocksMap.numNodes(blocks[curBlk]);
+                                                 INodeFile inode,
+
+                                                 <span class="keyword">long</span> offset,
+
+                                                 <span class="keyword">long</span> length,
+
+                                                 <span class="keyword">int</span> nrBlocksToReturn,
+
+                                                 boolean doAccessTime)</span>
+
+                                                 throws IOException </span>{
+
+  <span class="comment">//得到此文件的block信息</span>
+
+  Block[] blocks = inode.getBlocks();
+
+  List&lt;LocatedBlock&gt; results = <span class="keyword">new</span> ArrayList&lt;LocatedBlock&gt;(blocks.length);
+
+  <span class="comment">//计算从offset开始，长度为length所涉及的blocks</span>
+
+  <span class="keyword">int</span> curBlk = <span class="number">0</span>;
+
+  <span class="keyword">long</span> curPos = <span class="number">0</span>, blkSize = <span class="number">0</span>;
+
+  <span class="keyword">int</span> nrBlocks = (blocks[<span class="number">0</span>].getNumBytes() == <span class="number">0</span>) ? <span class="number">0</span> : blocks.length;
+
+  <span class="keyword">for</span> (curBlk = <span class="number">0</span>; curBlk &lt; nrBlocks; curBlk++) {
+
+    blkSize = blocks[curBlk].getNumBytes();
+
+    <span class="keyword">if</span> (curPos + blkSize &gt; offset) {
+
+      <span class="comment">//当offset在curPos和curPos + blkSize之间的时候，curBlk指向offset所在的block</span>
+
+      <span class="keyword">break</span>;
+
+    }
+
+    curPos += blkSize;
+
+  }
+
+  <span class="keyword">long</span> endOff = offset + length;
+</code></pre><p>  //循环，依次遍历从curBlk开始的每个block，直到当前位置curPos越过endOff</p>
+<pre><code><span class="label">do</span> {
+
+<span class="label">int</span> numNodes = <span class="keyword">blocksMap.numNodes(blocks[curBlk]);
 </span>
 <span class="label">int</span> numCorruptNodes = countNodes(<span class="keyword">blocks[curBlk]).corruptReplicas();
 </span>
@@ -239,372 +263,504 @@ String src, <span class="keyword">long</span> start, <span class="keyword">long<
 <span class="label">curPos</span> += <span class="keyword">blocks[curBlk].getNumBytes();
 </span>
 <span class="label">curBlk</span>++<span class="comment">;</span>
-</code></pre><p>  } while (curPos &lt; endOff</p>
-<pre><code>&amp;&amp; <span class="tag">curBlk</span> &lt; <span class="tag">blocks</span><span class="class">.length</span>
 
-&amp;&amp; <span class="tag">results</span><span class="class">.size</span>() &lt; <span class="tag">nrBlocksToReturn</span>);
-</code></pre><p>  //使用此LocatedBlock链表构造一个LocatedBlocks对象返回</p>
-<p>  return inode.createLocatedBlocks(results);</p>
-<p>}</p>
-<p>1.3、客户端<br>通过RPC调用，在NameNode得到的LocatedBlocks对象，作为成员变量构造DFSInputStream对象，最后包装为FSDataInputStream返回给用户。</p>
+} <span class="preprocessor">while</span> (curPos &lt; endOff
+
+    &amp;&amp; curBlk &lt; <span class="keyword">blocks.length
+</span>
+    &amp;&amp; results.size() &lt; nrBlocksToReturn)<span class="comment">;</span>
+
+  //使用此LocatedBlock链表构造一个LocatedBlocks对象返回
+
+  return inode.createLocatedBlocks(results)<span class="comment">;</span>
+
+}
+</code></pre><p>1.3、客户端<br>通过RPC调用，在NameNode得到的LocatedBlocks对象，作为成员变量构造DFSInputStream对象，最后包装为FSDataInputStream返回给用户。</p>
 <p>二、文件的读取<br>2.1、客户端<br>文件读取的时候，客户端利用文件打开的时候得到的FSDataInputStream.read(long position, byte[] buffer, int offset, int length)函数进行文件读操作。</p>
 <p>FSDataInputStream会调用其封装的DFSInputStream的read(long position, byte[] buffer, int offset, int length)函数，实现如下：</p>
-<p>public int read(long position, byte[] buffer, int offset, int length)</p>
-<p>  throws IOException {</p>
-<p>  long filelen = getFileLength();</p>
-<p>  int realLen = length;</p>
-<p>  if ((position + length) &gt; filelen) {</p>
-<pre><code>realLen = <span class="list">(<span class="keyword">int</span>)</span><span class="list">(<span class="keyword">filelen</span> - position)</span><span class="comment">;</span>
-</code></pre><p>  }</p>
-<p>  //首先得到包含从offset到offset + length内容的block列表</p>
-<p>  //比如对于64M一个block的文件系统来说，欲读取从100M开始，长度为128M的数据，则block列表包括第2，3，4块block</p>
-<p>  List<locatedblock> blockRange = getBlockRange(position, realLen);</locatedblock></p>
-<p>  int remaining = realLen;</p>
-<p>  //对每一个block，从中读取内容</p>
-<p>  //对于上面的例子，对于第2块block，读取从36M开始，读取长度28M，对于第3块，读取整一块64M，对于第4块，读取从0开始，长度为36M，共128M数据</p>
-<p>  for (LocatedBlock blk : blockRange) {</p>
-<pre><code><span class="label">long</span> targetStart = position - <span class="keyword">blk.getStartOffset();
-</span>
-<span class="label">long</span> <span class="keyword">bytesToRead </span>= Math.min(remaining, <span class="keyword">blk.getBlockSize() </span>- targetStart)<span class="comment">;</span>
+<pre><code><span class="keyword">public</span> <span class="function"><span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">long</span> position, <span class="keyword">byte</span>[] buffer, <span class="keyword">int</span> offset, <span class="keyword">int</span> length)</span>
 
-<span class="label">fetchBlockByteRange</span>(<span class="keyword">blk, </span>targetStart,
+  <span class="keyword">throws</span> IOException </span>{
 
-                    targetStart + <span class="keyword">bytesToRead </span>- <span class="number">1</span>, <span class="keyword">buffer, </span>offset)<span class="comment">;</span>
+  <span class="keyword">long</span> filelen = getFileLength();
 
-<span class="label">remaining</span> -= <span class="keyword">bytesToRead;
-</span>
-<span class="label">position</span> += <span class="keyword">bytesToRead;
-</span>
-<span class="label">offset</span> += <span class="keyword">bytesToRead;</span>
-</code></pre><p>  }</p>
-<p>  assert remaining == 0 : “Wrong number of bytes read.”;</p>
-<p>  if (stats != null) {</p>
-<pre><code><span class="tag">stats</span><span class="class">.incrementBytesRead</span>(<span class="tag">realLen</span>);
-</code></pre><p>  }</p>
-<p>  return realLen;</p>
-<p>}</p>
-<p>其中getBlockRange函数如下：</p>
-<p>private synchronized List<locatedblock> getBlockRange(long offset,</locatedblock></p>
-<pre><code>  <span class="keyword">long</span> length)
+  <span class="keyword">int</span> realLen = length;
 
-<span class="keyword">throws</span> IOException {
-</code></pre><p>  List<locatedblock> blockRange = new ArrayList<locatedblock>();</locatedblock></locatedblock></p>
-<p>  //首先从缓存的locatedBlocks中查找offset所在的block在缓存链表中的位置</p>
-<p>  int blockIdx = locatedBlocks.findBlock(offset);</p>
-<p>  if (blockIdx &lt; 0) { // block is not cached</p>
-<pre><code><span class="built_in">block</span>Idx = LocatedBlocks.getInsertIndex(<span class="built_in">block</span>Idx);
-</code></pre><p>  }</p>
-<p>  long remaining = length;</p>
-<p>  long curOff = offset;</p>
-<p>  while(remaining &gt; 0) {</p>
-<pre><code><span class="label">LocatedBlock</span> <span class="keyword">blk </span>= null<span class="comment">;</span>
+  <span class="keyword">if</span> ((position + length) &gt; filelen) {
 
-//按照<span class="keyword">blockIdx的位置找到block
-</span>
-<span class="label">if</span>(<span class="keyword">blockIdx </span>&lt; locatedBlocks.locatedBlockCount())
+    realLen = (<span class="keyword">int</span>)(filelen - position);
 
-  <span class="keyword">blk </span>= locatedBlocks.get(<span class="keyword">blockIdx);
-</span>
-//如果<span class="keyword">block为空，则缓存中没有此block，则直接从NameNode中查找这些block，并加入缓存
-</span>
-<span class="label">if</span> (<span class="keyword">blk </span>== null <span class="title">||</span> curOff &lt; <span class="keyword">blk.getStartOffset()) </span>{
+  }
 
-  LocatedBlocks newBlocks<span class="comment">;</span>
+  <span class="comment">//首先得到包含从offset到offset + length内容的block列表</span>
 
-  newBlocks = callGetBlockLocations(namenode, src, curOff, remaining)<span class="comment">;</span>
+  <span class="comment">//比如对于64M一个block的文件系统来说，欲读取从100M开始，长度为128M的数据，则block列表包括第2，3，4块block</span>
 
-  locatedBlocks.insertRange(<span class="keyword">blockIdx, </span>newBlocks.getLocatedBlocks())<span class="comment">;</span>
+  List&lt;LocatedBlock&gt; blockRange = getBlockRange(position, realLen);
 
-  continue<span class="comment">;</span>
+  <span class="keyword">int</span> remaining = realLen;
+
+  <span class="comment">//对每一个block，从中读取内容</span>
+
+  <span class="comment">//对于上面的例子，对于第2块block，读取从36M开始，读取长度28M，对于第3块，读取整一块64M，对于第4块，读取从0开始，长度为36M，共128M数据</span>
+
+  <span class="keyword">for</span> (LocatedBlock blk : blockRange) {
+
+    <span class="keyword">long</span> targetStart = position - blk.getStartOffset();
+
+    <span class="keyword">long</span> bytesToRead = Math.min(remaining, blk.getBlockSize() - targetStart);
+
+    fetchBlockByteRange(blk, targetStart,
+
+                        targetStart + bytesToRead - <span class="number">1</span>, buffer, offset);
+
+    remaining -= bytesToRead;
+
+    position += bytesToRead;
+
+    offset += bytesToRead;
+
+  }
+
+  <span class="keyword">assert</span> remaining == <span class="number">0</span> : <span class="string">"Wrong number of bytes read."</span>;
+
+  <span class="keyword">if</span> (stats != <span class="keyword">null</span>) {
+
+    stats.incrementBytesRead(realLen);
+
+  }
+
+  <span class="keyword">return</span> realLen;
 
 }
+</code></pre><p>其中getBlockRange函数如下：</p>
+<pre><code><span class="label">private</span> synchronized List&lt;LocatedBlock&gt; getBlockRange(long offset,
 
-//如果<span class="keyword">block找到，则放入结果集
+                                                      long length)
+
+                                                    throws IOException {
+
+  List&lt;LocatedBlock&gt; <span class="keyword">blockRange </span>= new ArrayList&lt;LocatedBlock&gt;()<span class="comment">;</span>
+
+  //首先从缓存的locatedBlocks中查找offset所在的<span class="keyword">block在缓存链表中的位置
 </span>
-<span class="keyword">blockRange.add(blk);
+  int <span class="keyword">blockIdx </span>= locatedBlocks.findBlock(offset)<span class="comment">;</span>
+
+  <span class="preprocessor">if</span> (<span class="keyword">blockIdx </span>&lt; <span class="number">0</span>) { // <span class="keyword">block </span>is not cached
+
+    <span class="keyword">blockIdx </span>= LocatedBlocks.getInsertIndex(<span class="keyword">blockIdx);
 </span>
-<span class="label">long</span> <span class="keyword">bytesRead </span>= <span class="keyword">blk.getStartOffset() </span>+ <span class="keyword">blk.getBlockSize() </span>- curOff<span class="comment">;</span>
+  }
 
-<span class="label">remaining</span> -= <span class="keyword">bytesRead;
+  long remaining = length<span class="comment">;</span>
+
+  long curOff = offset<span class="comment">;</span>
+
+  <span class="preprocessor">while</span>(remaining &gt; <span class="number">0</span>) {
+
+    LocatedBlock <span class="keyword">blk </span>= null<span class="comment">;</span>
+
+    //按照<span class="keyword">blockIdx的位置找到block
 </span>
-<span class="label">curOff</span> += <span class="keyword">bytesRead;
+    <span class="preprocessor">if</span>(<span class="keyword">blockIdx </span>&lt; locatedBlocks.locatedBlockCount())
+
+      <span class="keyword">blk </span>= locatedBlocks.get(<span class="keyword">blockIdx);
 </span>
-//取下一个<span class="keyword">block
+    //如果<span class="keyword">block为空，则缓存中没有此block，则直接从NameNode中查找这些block，并加入缓存
 </span>
-<span class="keyword">blockIdx++;</span>
-</code></pre><p>  }</p>
-<p>  return blockRange;</p>
-<p>}</p>
-<p>其中fetchBlockByteRange实现如下：</p>
-<p>private void fetchBlockByteRange(LocatedBlock block, long start,</p>
-<pre><code><span class="keyword">long</span> end, <span class="keyword">byte</span>[] buf, <span class="keyword">int</span> offset) <span class="keyword">throws</span> IOException {
-</code></pre><p>  Socket dn = null;</p>
-<p>  int numAttempts = block.getLocations().length;</p>
-<p>  //此while循环为读取失败后的重试次数</p>
-<p>  while (dn == null &amp;&amp; numAttempts– &gt; 0 ) {</p>
-<pre><code>//选择一个DataNode来读取数据
+    <span class="preprocessor">if</span> (<span class="keyword">blk </span>== null <span class="title">||</span> curOff &lt; <span class="keyword">blk.getStartOffset()) </span>{
 
-DNAddrPair retval = chooseDataNode(block)<span class="comment">;</span>
+      LocatedBlocks newBlocks<span class="comment">;</span>
 
-DatanodeInfo chosenNode = retval.info<span class="comment">;</span>
+      newBlocks = callGetBlockLocations(namenode, src, curOff, remaining)<span class="comment">;</span>
 
-InetSocketAddress targetAddr = retval.addr<span class="comment">;</span>
+      locatedBlocks.insertRange(<span class="keyword">blockIdx, </span>newBlocks.getLocatedBlocks())<span class="comment">;</span>
 
-BlockReader reader = null<span class="comment">;</span>
+      continue<span class="comment">;</span>
 
-try {
+    }
 
-  //创建Socket连接到DataNode
+    //如果<span class="keyword">block找到，则放入结果集
+</span>
+    <span class="keyword">blockRange.add(blk);
+</span>
+    long <span class="keyword">bytesRead </span>= <span class="keyword">blk.getStartOffset() </span>+ <span class="keyword">blk.getBlockSize() </span>- curOff<span class="comment">;</span>
 
-  dn = socketFactory.createSocket()<span class="comment">;</span>
+    remaining -= <span class="keyword">bytesRead;
+</span>
+    curOff += <span class="keyword">bytesRead;
+</span>
+    //取下一个<span class="keyword">block
+</span>
+    <span class="keyword">blockIdx++;
+</span>
+  }
 
-  dn.connect(targetAddr, socketTimeout)<span class="comment">;</span>
+  return <span class="keyword">blockRange;
+</span>
+}
+</code></pre><p>其中fetchBlockByteRange实现如下：<br>    private void fetchBlockByteRange(LocatedBlock block, long start,</p>
+<pre><code>                                 long <span class="preprocessor">end</span>, <span class="keyword">byte[] </span><span class="keyword">buf, </span>int offset) throws IOException {
 
-  dn.setSoTimeout(socketTimeout)<span class="comment">;</span>
+  Socket <span class="preprocessor">dn</span> = null<span class="comment">;</span>
 
-  int len = (int) (end - start + 1)<span class="comment">;</span>
+  int numAttempts = <span class="keyword">block.getLocations().length;
+</span>
+  //此<span class="preprocessor">while</span>循环为读取失败后的重试次数
 
-  //利用建立的Socket链接，生成一个reader负责从DataNode读取数据
+  <span class="preprocessor">while</span> (<span class="preprocessor">dn</span> == null &amp;&amp; numAttempts-- &gt; <span class="number">0</span> ) {
 
-  reader = BlockReader.newBlockReader(dn, src,
+    //选择一个DataNode来读取数据
 
-                                      block.getBlock().getBlockId(),
+    DNAddrPair retval = chooseDataNode(<span class="keyword">block);
+</span>
+    DatanodeInfo chosenNode = retval.info<span class="comment">;</span>
 
-                                      block.getBlock().getGenerationStamp(),
+    InetSocketAddress targetAddr = retval.<span class="keyword">addr;
+</span>
+    <span class="keyword">BlockReader </span>reader = null<span class="comment">;</span>
 
-                                      start, len, buffersize,
+    try {
 
-                                      verifyChecksum, clientName)<span class="comment">;</span>
+      //创建Socket连接到DataNode
 
-  //读取数据
+      <span class="preprocessor">dn</span> = socketFactory.createSocket()<span class="comment">;</span>
 
-  int nread = reader.readAll(buf, offset, len)<span class="comment">;</span>
+      <span class="preprocessor">dn</span>.connect(targetAddr, socketTimeout)<span class="comment">;</span>
 
-  return<span class="comment">;</span>
+      <span class="preprocessor">dn</span>.setSoTimeout(socketTimeout)<span class="comment">;</span>
 
-} finally {
+      int len = (int) (<span class="preprocessor">end</span> - start + <span class="number">1</span>)<span class="comment">;</span>
 
-  IOUtils.closeStream(reader)<span class="comment">;</span>
+      //利用建立的Socket链接，生成一个reader负责从DataNode读取数据
 
-  IOUtils.closeSocket(dn)<span class="comment">;</span>
+      reader = <span class="keyword">BlockReader.newBlockReader(dn, </span>src,
 
-  dn = null<span class="comment">;</span>
+                                          <span class="keyword">block.getBlock().getBlockId(),
+</span>
+                                          <span class="keyword">block.getBlock().getGenerationStamp(),
+</span>
+                                          start, len, <span class="keyword">buffersize,
+</span>
+                                          verifyChecksum, clientName)<span class="comment">;</span>
+
+      //读取数据
+
+      int nread = reader.readAll(<span class="keyword">buf, </span>offset, len)<span class="comment">;</span>
+
+      return<span class="comment">;</span>
+
+    } finally {
+
+      IOUtils.closeStream(reader)<span class="comment">;</span>
+
+      IOUtils.closeSocket(<span class="preprocessor">dn</span>)<span class="comment">;</span>
+
+      <span class="preprocessor">dn</span> = null<span class="comment">;</span>
+
+    }
+
+    //如果读取失败，则将此DataNode标记为失败节点
+
+    <span class="keyword">addToDeadNodes(chosenNode);
+</span>
+  }
 
 }
+</code></pre><p>BlockReader.newBlockReader函数实现如下：</p>
+<pre><code><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> BlockReader <span class="title">newBlockReader</span>(<span class="params"> Socket sock, String file,
 
-//如果读取失败，则将此DataNode标记为失败节点
+                                   <span class="keyword">long</span> blockId,
 
-addToDeadNodes(chosenNode)<span class="comment">;</span>
-</code></pre><p>  }</p>
-<p>}</p>
-<p>BlockReader.newBlockReader函数实现如下：</p>
-<p>public static BlockReader newBlockReader( Socket sock, String file,</p>
-<pre><code><span class="keyword">long</span> blockId,
+                                   <span class="keyword">long</span> genStamp,
 
-<span class="keyword">long</span> genStamp,
+                                   <span class="keyword">long</span> startOffset, <span class="keyword">long</span> len,
 
-<span class="keyword">long</span> startOffset, <span class="keyword">long</span> len,
+                                   <span class="keyword">int</span> bufferSize, boolean verifyChecksum,
 
-<span class="built_in">int</span> bufferSize, <span class="built_in">boolean</span> verifyChecksum,
+                                   String clientName</span>)
 
-<span class="keyword">String</span> clientName)
+                                   throws IOException </span>{
 
-<span class="keyword">throws</span> IOException {
-</code></pre><p>  //使用Socket建立写入流，向DataNode发送读指令</p>
-<p>  DataOutputStream out = new DataOutputStream(</p>
-<pre><code><span class="tag">new</span> <span class="tag">BufferedOutputStream</span>(<span class="tag">NetUtils</span><span class="class">.getOutputStream</span>(<span class="tag">sock</span>,<span class="tag">HdfsConstants</span><span class="class">.WRITE_TIMEOUT</span>)));
-</code></pre><p>  out.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );</p>
-<p>  out.write( DataTransferProtocol.OP_READ_BLOCK );</p>
-<p>  out.writeLong( blockId );</p>
-<p>  out.writeLong( genStamp );</p>
-<p>  out.writeLong( startOffset );</p>
-<p>  out.writeLong( len );</p>
-<p>  Text.writeString(out, clientName);</p>
-<p>  out.flush();</p>
-<p>  //使用Socket建立读入流，用于从DataNode读取数据</p>
-<p>  DataInputStream in = new DataInputStream(</p>
-<pre><code><span class="keyword">new</span> BufferedInputStream(NetUtils.getInputStream(sock),
+  <span class="comment">//使用Socket建立写入流，向DataNode发送读指令</span>
 
-                        bufferSize));
-</code></pre><p>  DataChecksum checksum = DataChecksum.newDataChecksum( in );</p>
-<p>  long firstChunkOffset = in.readLong();</p>
-<p>  //生成一个reader，主要包含读入流，用于读取数据</p>
-<p>  return new BlockReader( file, blockId, in, checksum, verifyChecksum,</p>
-<pre><code>startOffset, firstChunkOffset, sock )<span class="comment">;</span>
-</code></pre><p>}</p>
-<p>BlockReader的readAll函数就是用上面生成的DataInputStream读取数据。</p>
+  DataOutputStream <span class="keyword">out</span> = <span class="keyword">new</span> DataOutputStream(
+
+    <span class="keyword">new</span> BufferedOutputStream(NetUtils.getOutputStream(sock,HdfsConstants.WRITE_TIMEOUT)));
+
+  <span class="keyword">out</span>.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );
+
+  <span class="keyword">out</span>.write( DataTransferProtocol.OP_READ_BLOCK );
+
+  <span class="keyword">out</span>.writeLong( blockId );
+
+  <span class="keyword">out</span>.writeLong( genStamp );
+
+  <span class="keyword">out</span>.writeLong( startOffset );
+
+  <span class="keyword">out</span>.writeLong( len );
+
+  Text.writeString(<span class="keyword">out</span>, clientName);
+
+  <span class="keyword">out</span>.flush();
+
+  <span class="comment">//使用Socket建立读入流，用于从DataNode读取数据</span>
+
+  DataInputStream <span class="keyword">in</span> = <span class="keyword">new</span> DataInputStream(
+
+      <span class="keyword">new</span> BufferedInputStream(NetUtils.getInputStream(sock),
+
+                              bufferSize));
+
+  DataChecksum checksum = DataChecksum.newDataChecksum( <span class="keyword">in</span> );
+
+  <span class="keyword">long</span> firstChunkOffset = <span class="keyword">in</span>.readLong();
+
+  <span class="comment">//生成一个reader，主要包含读入流，用于读取数据</span>
+
+  <span class="keyword">return</span> <span class="keyword">new</span> BlockReader( file, blockId, <span class="keyword">in</span>, checksum, verifyChecksum,
+
+                          startOffset, firstChunkOffset, sock );
+
+}
+</code></pre><p>BlockReader的readAll函数就是用上面生成的DataInputStream读取数据。</p>
 <p>2.2、DataNode<br>在DataNode启动的时候，会调用函数startDataNode，其中与数据读取有关的逻辑如下：</p>
-<p>void startDataNode(Configuration conf,</p>
-<pre><code>AbstractList&lt;<span class="keyword">File</span>&gt; dataDirs
+<pre><code><span class="function"><span class="keyword">void</span> <span class="title">startDataNode</span><span class="params">(Configuration conf,
 
-) <span class="keyword">throws</span> IOException {
-</code></pre><p>  ……</p>
-<p>  // 建立一个ServerSocket，并生成一个DataXceiverServer来监控客户端的链接</p>
-<p>  ServerSocket ss = (socketWriteTimeout &gt; 0) ?</p>
-<pre><code><span class="type">ServerSocketChannel</span>.<span class="keyword">open</span><span class="literal">()</span>.socket<span class="literal">()</span> : new <span class="type">ServerSocket</span><span class="literal">()</span>;
-</code></pre><p>  Server.bind(ss, socAddr, 0);</p>
-<p>  ss.setReceiveBufferSize(DEFAULT_DATA_SOCKET_SIZE);</p>
-<p>  // adjust machine name with the actual port</p>
-<p>  tmpPort = ss.getLocalPort();</p>
-<p>  selfAddr = new InetSocketAddress(ss.getInetAddress().getHostAddress(),</p>
-<pre><code>tmpPort)<span class="comment">;</span>
-</code></pre><p>  this.dnRegistration.setName(machineName + “:” + tmpPort);</p>
-<p>  this.threadGroup = new ThreadGroup(“dataXceiverServer”);</p>
-<p>  this.dataXceiverServer = new Daemon(threadGroup,</p>
-<pre><code><span class="keyword">new</span> DataXceiverServer(ss, conf, <span class="keyword">this</span>));
-</code></pre><p>  this.threadGroup.setDaemon(true); // auto destroy when empty</p>
-<p>  ……</p>
-<p>}</p>
-<p>DataXceiverServer.run()函数如下：</p>
-<p>public void run() {</p>
-<p>  while (datanode.shouldRun) {</p>
-<pre><code><span class="comment">//接受客户端的链接</span>
+                   AbstractList&lt;File&gt; dataDirs
 
-Socket s = ss.accept();
+                   )</span> <span class="keyword">throws</span> IOException </span>{
 
-s.setTcpNoDelay(<span class="literal">true</span>);
+  ……
 
-<span class="comment">//生成一个线程DataXceiver来对建立的链接提供服务</span>
+  <span class="comment">// 建立一个ServerSocket，并生成一个DataXceiverServer来监控客户端的链接</span>
 
-<span class="keyword">new</span> Daemon(datanode.threadGroup,
+  ServerSocket ss = (socketWriteTimeout &gt; <span class="number">0</span>) ?
 
-    <span class="keyword">new</span> DataXceiver(s, datanode, <span class="keyword">this</span>)).start();
-</code></pre><p>  }</p>
-<p>  try {</p>
-<pre><code><span class="tag">ss</span><span class="class">.close</span>();
-</code></pre><p>  } catch (IOException ie) {</p>
-<pre><code><span class="tag">LOG</span><span class="class">.warn</span>(<span class="tag">datanode</span><span class="class">.dnRegistration</span> + "<span class="pseudo">:DataXceiveServer</span>: "
+        ServerSocketChannel.open().socket() : <span class="keyword">new</span> ServerSocket();
 
-                        + <span class="tag">StringUtils</span><span class="class">.stringifyException</span>(<span class="tag">ie</span>));
-</code></pre><p>  }</p>
-<p>}</p>
-<p>DataXceiver.run()函数如下：</p>
-<p>public void run() {</p>
-<p>  DataInputStream in=null;</p>
-<p>  try {</p>
-<pre><code><span class="comment">//建立一个输入流，读取客户端发送的指令</span>
+  Server.bind(ss, socAddr, <span class="number">0</span>);
 
-<span class="keyword">in</span> = <span class="keyword">new</span> DataInputStream(
+  ss.setReceiveBufferSize(DEFAULT_DATA_SOCKET_SIZE);
 
-    <span class="keyword">new</span> BufferedInputStream(NetUtils.getInputStream(s),
+  <span class="comment">// adjust machine name with the actual port</span>
 
-                            SMALL_BUFFER_SIZE));
+  tmpPort = ss.getLocalPort();
 
-<span class="typename">short</span> version = <span class="keyword">in</span>.readShort();
+  selfAddr = <span class="keyword">new</span> InetSocketAddress(ss.getInetAddress().getHostAddress(),
 
-<span class="typename">boolean</span> local = s.getInetAddress().equals(s.getLocalAddress());
+                                   tmpPort);
 
-<span class="typename">byte</span> op = <span class="keyword">in</span>.readByte();
+  <span class="keyword">this</span>.dnRegistration.setName(machineName + <span class="string">":"</span> + tmpPort);
 
-<span class="comment">// Make sure the xciver count is not exceeded</span>
+  <span class="keyword">this</span>.threadGroup = <span class="keyword">new</span> ThreadGroup(<span class="string">"dataXceiverServer"</span>);
 
-<span class="typename">int</span> curXceiverCount = datanode.getXceiverCount();
+  <span class="keyword">this</span>.dataXceiverServer = <span class="keyword">new</span> Daemon(threadGroup,
 
-<span class="typename">long</span> startTime = DataNode.now();
+      <span class="keyword">new</span> DataXceiverServer(ss, conf, <span class="keyword">this</span>));
 
-<span class="keyword">switch</span> ( op ) {
+  <span class="keyword">this</span>.threadGroup.setDaemon(<span class="keyword">true</span>); <span class="comment">// auto destroy when empty</span>
 
-<span class="comment">//读取</span>
-
-<span class="keyword">case</span> DataTransferProtocol.<span class="string">OP_READ_BLOCK:</span>
-
-  <span class="comment">//真正的读取数据</span>
-
-  readBlock( <span class="keyword">in</span> );
-
-  datanode.myMetrics.readBlockOp.inc(DataNode.now() - startTime);
-
-  <span class="keyword">if</span> (local)
-
-    datanode.myMetrics.readsFromLocalClient.inc();
-
-  <span class="keyword">else</span>
-
-    datanode.myMetrics.readsFromRemoteClient.inc();
-
-  <span class="keyword">break</span>;
-
-<span class="comment">//写入</span>
-
-<span class="keyword">case</span> DataTransferProtocol.<span class="string">OP_WRITE_BLOCK:</span>
-
-  <span class="comment">//真正的写入数据</span>
-
-  writeBlock( <span class="keyword">in</span> );
-
-  datanode.myMetrics.writeBlockOp.inc(DataNode.now() - startTime);
-
-  <span class="keyword">if</span> (local)
-
-    datanode.myMetrics.writesFromLocalClient.inc();
-
-  <span class="keyword">else</span>
-
-    datanode.myMetrics.writesFromRemoteClient.inc();
-
-  <span class="keyword">break</span>;
-
-<span class="comment">//其他的指令</span>
-
-……
+  ……
 
 }
-</code></pre><p>  } catch (Throwable t) {</p>
-<pre><code><span class="tag">LOG</span><span class="class">.error</span>(<span class="tag">datanode</span><span class="class">.dnRegistration</span> + "<span class="pseudo">:DataXceiver"</span>,<span class="tag">t</span>);
-</code></pre><p>  } finally {</p>
-<pre><code><span class="tag">IOUtils</span><span class="class">.closeStream</span>(<span class="tag">in</span>);
+</code></pre><p>DataXceiverServer.run()函数如下：</p>
+<pre><code><span class="keyword">public</span> <span class="function"><span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>{
 
-<span class="tag">IOUtils</span><span class="class">.closeSocket</span>(<span class="tag">s</span>);
+  <span class="keyword">while</span> (datanode.shouldRun) {
 
-<span class="tag">dataXceiverServer</span><span class="class">.childSockets</span><span class="class">.remove</span>(<span class="tag">s</span>);
-</code></pre><p>  }</p>
-<p>}</p>
-<p>private void readBlock(DataInputStream in) throws IOException {</p>
-<p>  //读取指令</p>
-<p>  long blockId = in.readLong();         </p>
-<p>  Block block = new Block( blockId, 0 , in.readLong());</p>
-<p>  long startOffset = in.readLong();</p>
-<p>  long length = in.readLong();</p>
-<p>  String clientName = Text.readString(in);</p>
-<p>  //创建一个写入流，用于向客户端写数据</p>
-<p>  OutputStream baseStream = NetUtils.getOutputStream(s,</p>
-<pre><code><span class="tag">datanode</span><span class="class">.socketWriteTimeout</span>);
-</code></pre><p>  DataOutputStream out = new DataOutputStream(</p>
-<pre><code><span class="keyword">new</span> BufferedOutputStream(baseStream, SMALL_BUFFER_SIZE));
-</code></pre><p>  //生成BlockSender用于读取本地的block的数据，并发送给客户端</p>
-<p>  //BlockSender有一个成员变量InputStream blockIn用于读取本地block的数据</p>
-<p>  BlockSender blockSender = new BlockSender(block, startOffset, length,</p>
-<pre><code><span class="literal">true</span>, <span class="literal">true</span>, <span class="literal">false</span>, datanode, clientTraceFmt);
-</code></pre><p>   out.writeShort(DataTransferProtocol.OP_STATUS_SUCCESS); // send op status</p>
-<p>   //向客户端写入数据</p>
-<p>   long read = blockSender.sendBlock(out, baseStream, null);</p>
-<p>   ……</p>
-<p>  } finally {</p>
-<pre><code><span class="tag">IOUtils</span><span class="class">.closeStream</span>(<span class="tag">out</span>);
+      <span class="comment">//接受客户端的链接</span>
 
-<span class="tag">IOUtils</span><span class="class">.closeStream</span>(<span class="tag">blockSender</span>);
-</code></pre><p>  }</p>
-<p>}</p>
-<p>三、文件的写入<br>下面解析向hdfs上传一个文件的过程。</p>
+      Socket s = ss.accept();
+
+      s.setTcpNoDelay(<span class="keyword">true</span>);
+
+      <span class="comment">//生成一个线程DataXceiver来对建立的链接提供服务</span>
+
+      <span class="keyword">new</span> Daemon(datanode.threadGroup,
+
+          <span class="keyword">new</span> DataXceiver(s, datanode, <span class="keyword">this</span>)).start();
+
+  }
+
+  <span class="keyword">try</span> {
+
+    ss.close();
+
+  } <span class="keyword">catch</span> (IOException ie) {
+
+    LOG.warn(datanode.dnRegistration + <span class="string">":DataXceiveServer: "</span>
+
+                            + StringUtils.stringifyException(ie));
+
+  }
+
+}
+</code></pre><p>DataXceiver.run()函数如下：</p>
+<pre><code><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span>(<span class="params"></span>) </span>{
+
+  DataInputStream <span class="keyword">in</span>=<span class="keyword">null</span>;
+
+  <span class="keyword">try</span> {
+
+    <span class="comment">//建立一个输入流，读取客户端发送的指令</span>
+
+    <span class="keyword">in</span> = <span class="keyword">new</span> DataInputStream(
+
+        <span class="keyword">new</span> BufferedInputStream(NetUtils.getInputStream(s),
+
+                                SMALL_BUFFER_SIZE));
+
+    <span class="keyword">short</span> version = <span class="keyword">in</span>.readShort();
+
+    boolean local = s.getInetAddress().equals(s.getLocalAddress());
+
+    <span class="keyword">byte</span> op = <span class="keyword">in</span>.readByte();
+
+    <span class="comment">// Make sure the xciver count is not exceeded</span>
+
+    <span class="keyword">int</span> curXceiverCount = datanode.getXceiverCount();
+
+    <span class="keyword">long</span> startTime = DataNode.now();
+
+    <span class="keyword">switch</span> ( op ) {
+
+    <span class="comment">//读取</span>
+
+    <span class="keyword">case</span> DataTransferProtocol.OP_READ_BLOCK:
+
+      <span class="comment">//真正的读取数据</span>
+
+      readBlock( <span class="keyword">in</span> );
+
+      datanode.myMetrics.readBlockOp.inc(DataNode.now() - startTime);
+
+      <span class="keyword">if</span> (local)
+
+        datanode.myMetrics.readsFromLocalClient.inc();
+
+      <span class="keyword">else</span>
+
+        datanode.myMetrics.readsFromRemoteClient.inc();
+
+      <span class="keyword">break</span>;
+
+    <span class="comment">//写入</span>
+
+    <span class="keyword">case</span> DataTransferProtocol.OP_WRITE_BLOCK:
+
+      <span class="comment">//真正的写入数据</span>
+
+      writeBlock( <span class="keyword">in</span> );
+
+      datanode.myMetrics.writeBlockOp.inc(DataNode.now() - startTime);
+
+      <span class="keyword">if</span> (local)
+
+        datanode.myMetrics.writesFromLocalClient.inc();
+
+      <span class="keyword">else</span>
+
+        datanode.myMetrics.writesFromRemoteClient.inc();
+
+      <span class="keyword">break</span>;
+
+    <span class="comment">//其他的指令</span>
+
+    ……
+
+    }
+
+  } <span class="keyword">catch</span> (Throwable t) {
+
+    LOG.error(datanode.dnRegistration + <span class="string">":DataXceiver"</span>,t);
+
+  } <span class="keyword">finally</span> {
+
+    IOUtils.closeStream(<span class="keyword">in</span>);
+
+    IOUtils.closeSocket(s);
+
+    dataXceiverServer.childSockets.remove(s);
+
+  }
+
+}
+
+
+
+<span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">readBlock</span>(<span class="params">DataInputStream <span class="keyword">in</span></span>) throws IOException </span>{
+
+  <span class="comment">//读取指令</span>
+
+  <span class="keyword">long</span> blockId = <span class="keyword">in</span>.readLong();         
+
+  Block block = <span class="keyword">new</span> Block( blockId, <span class="number">0</span> , <span class="keyword">in</span>.readLong());
+
+  <span class="keyword">long</span> startOffset = <span class="keyword">in</span>.readLong();
+
+  <span class="keyword">long</span> length = <span class="keyword">in</span>.readLong();
+
+  String clientName = Text.readString(<span class="keyword">in</span>);
+
+  <span class="comment">//创建一个写入流，用于向客户端写数据</span>
+
+  OutputStream baseStream = NetUtils.getOutputStream(s,
+
+      datanode.socketWriteTimeout);
+
+  DataOutputStream <span class="keyword">out</span> = <span class="keyword">new</span> DataOutputStream(
+
+               <span class="keyword">new</span> BufferedOutputStream(baseStream, SMALL_BUFFER_SIZE));
+
+  <span class="comment">//生成BlockSender用于读取本地的block的数据，并发送给客户端</span>
+
+  <span class="comment">//BlockSender有一个成员变量InputStream blockIn用于读取本地block的数据</span>
+
+  BlockSender blockSender = <span class="keyword">new</span> BlockSender(block, startOffset, length,
+
+          <span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">false</span>, datanode, clientTraceFmt);
+
+   <span class="keyword">out</span>.writeShort(DataTransferProtocol.OP_STATUS_SUCCESS); <span class="comment">// send op status</span>
+
+   <span class="comment">//向客户端写入数据</span>
+
+   <span class="keyword">long</span> read = blockSender.sendBlock(<span class="keyword">out</span>, baseStream, <span class="keyword">null</span>);
+
+   ……
+
+  } <span class="keyword">finally</span> {
+
+    IOUtils.closeStream(<span class="keyword">out</span>);
+
+    IOUtils.closeStream(blockSender);
+
+  }
+
+}
+</code></pre><p>三、文件的写入<br>下面解析向hdfs上传一个文件的过程。</p>
 <p>3.1、客户端<br>上传一个文件到hdfs，一般会调用DistributedFileSystem.create，其实现如下：</p>
-<p>  public FSDataOutputStream create(Path f, FsPermission permission,</p>
-<pre><code><span class="keyword">boolean</span> overwrite,
+<pre><code><span class="keyword">public</span> <span class="function">FSDataOutputStream <span class="title">create</span><span class="params">(Path f, FsPermission permission,
 
-<span class="keyword">int</span> bufferSize, <span class="keyword">short</span> replication, <span class="keyword">long</span> blockSize,
+  <span class="keyword">boolean</span> overwrite,
 
-Progressable progress) <span class="keyword">throws</span> IOException {
+  <span class="keyword">int</span> bufferSize, <span class="keyword">short</span> replication, <span class="keyword">long</span> blockSize,
 
-<span class="keyword">return</span> <span class="keyword">new</span> FSDataOutputStream
+  Progressable progress)</span> <span class="keyword">throws</span> IOException </span>{
 
-   (dfs.create(getPathName(f), permission,
+  <span class="keyword">return</span> <span class="keyword">new</span> FSDataOutputStream
 
-               overwrite, replication, blockSize, progress, bufferSize),
+     (dfs.create(getPathName(f), permission,
 
-    statistics);
-</code></pre><p>  }</p>
-<p>其最终生成一个FSDataOutputStream用于向新生成的文件中写入数据。其成员变量dfs的类型为DFSClient，DFSClient的create函数如下：</p>
-<p>  public OutputStream create(String src,</p>
-<pre><code>                         <span class="type">FsPermission</span> permission,
+                 overwrite, replication, blockSize, progress, bufferSize),
+
+      statistics);
+
+}
+</code></pre><p>其最终生成一个FSDataOutputStream用于向新生成的文件中写入数据。其成员变量dfs的类型为DFSClient，DFSClient的create函数如下：</p>
+<pre><code>public <span class="type">OutputStream</span> create(<span class="type">String</span> src,
+
+                         <span class="type">FsPermission</span> permission,
 
                          boolean overwrite,
 
@@ -639,8 +795,9 @@ leasechecker.put(src, <span class="literal">result</span>);
 <span class="keyword">return</span> <span class="literal">result</span>;
 </code></pre><p>  }</p>
 <p>其中构造了一个DFSOutputStream，在其构造函数中，同过RPC调用NameNode的create来创建一个文件。<br>当然，构造函数中还做了一件重要的事情，就是streamer.start()，也即启动了一个pipeline，用于写数据，在写入数据的过程中，我们会仔细分析。</p>
-<p>  DFSOutputStream(String src, FsPermission masked, boolean overwrite,</p>
-<pre><code>  <span class="keyword">short</span> replication, <span class="keyword">long</span> blockSize, Progressable progress,
+<pre><code>DFSOutputStream(String src, FsPermission masked, <span class="keyword">boolean</span> overwrite,
+
+  <span class="keyword">short</span> replication, <span class="keyword">long</span> blockSize, Progressable progress,
 
   <span class="keyword">int</span> buffersize, <span class="keyword">int</span> bytesPerChecksum) <span class="keyword">throws</span> IOException {
 
@@ -663,132 +820,145 @@ computePacketChunkSize(writePacketSize, bytesPerChecksum);
 }
 
 streamer.start();
-</code></pre><p>  }</p>
-<p>3.2、NameNode<br>NameNode的create函数调用namesystem.startFile函数，其又调用startFileInternal函数，实现如下：</p>
-<p>  private synchronized void startFileInternal(String src,</p>
-<pre><code>                                          PermissionStatus permissions,
 
-                                          <span class="keyword">String</span> holder,
+  }
+</code></pre><p>3.2、NameNode<br>NameNode的create函数调用namesystem.startFile函数，其又调用startFileInternal函数，实现如下：</p>
+<pre><code><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> startFileInternal(<span class="keyword">String</span> src,
 
-                                          <span class="keyword">String</span> clientMachine,
+                                         PermissionStatus permissions,
 
-                                          <span class="built_in">boolean</span> overwrite,
+                                         <span class="keyword">String</span> holder,
 
-                                          <span class="built_in">boolean</span> <span class="built_in">append</span>,
+                                         <span class="keyword">String</span> clientMachine,
 
-                                          <span class="keyword">short</span> replication,
+                                         <span class="built_in">boolean</span> overwrite,
 
-                                          <span class="keyword">long</span> blockSize
+                                         <span class="built_in">boolean</span> <span class="built_in">append</span>,
 
-                                          ) <span class="keyword">throws</span> IOException {
+                                         <span class="keyword">short</span> replication,
 
-......
-</code></pre><p>   //创建一个新的文件，状态为under construction，没有任何data block与之对应</p>
-<p>   long genstamp = nextGenerationStamp();</p>
-<p>   INodeFileUnderConstruction newNode = dir.addFile(src, permissions,</p>
-<pre><code><span class="label">replication</span>, <span class="keyword">blockSize, </span>holder, clientMachine, clientNode, genstamp)<span class="comment">;</span>
-</code></pre><p>   ……</p>
-<p>  }</p>
-<p>3.3、客户端<br>下面轮到客户端向新创建的文件中写入数据了，一般会使用FSDataOutputStream的write函数，最终会调用DFSOutputStream的writeChunk函数：</p>
+                                         <span class="keyword">long</span> blockSize
+
+                                         ) <span class="keyword">throws</span> IOException {
+
+   ......
+
+  <span class="comment">//创建一个新的文件，状态为under construction，没有任何data block与之对应</span>
+
+  <span class="keyword">long</span> genstamp = nextGenerationStamp();
+
+  INodeFileUnderConstruction newNode = dir.addFile(src, permissions,
+
+     replication, blockSize, holder, clientMachine, clientNode, genstamp);
+
+  ......
+
+ }
+</code></pre><p>3.3、客户端<br>下面轮到客户端向新创建的文件中写入数据了，一般会使用FSDataOutputStream的write函数，最终会调用DFSOutputStream的writeChunk函数：</p>
 <p>按照hdfs的设计，对block的数据写入使用的是pipeline的方式，也即将数据分成一个个的package，如果需要复制三分，分别写入DataNode 1, 2, 3，则会进行如下的过程：</p>
 <p>首先将package 1写入DataNode 1<br>然后由DataNode 1负责将package 1写入DataNode 2，同时客户端可以将pacage 2写入DataNode 1<br>然后DataNode 2负责将package 1写入DataNode 3, 同时客户端可以讲package 3写入DataNode 1，DataNode 1将package 2写入DataNode 2<br>就这样将一个个package排着队的传递下去，直到所有的数据全部写入并复制完毕<br>  protected synchronized void writeChunk(byte[] b, int offset, int len, byte[] checksum)</p>
-<pre><code>                                                  throws IOException {
+<pre><code>                                                    <span class="keyword">throws</span> IOException {
 
-<span class="comment">//创建一个package，并写入数据</span>
+  <span class="comment">//创建一个package，并写入数据</span>
 
-currentPacket = <span class="literal">new</span> Packet(packetSize, chunksPerPacket,
+  currentPacket = <span class="keyword">new</span> Packet(packetSize, chunksPerPacket,
 
-                             bytesCurBlock);
+                               bytesCurBlock);
 
-currentPacket<span class="built_in">.</span>writeChecksum(checksum, <span class="number">0</span>, cklen);
+  currentPacket.writeChecksum(checksum, <span class="number">0</span>, cklen);
 
-currentPacket<span class="built_in">.</span>writeData(b, offset, len);
+  currentPacket.writeData(b, offset, len);
 
-currentPacket<span class="built_in">.</span>numChunks++;
+  currentPacket.numChunks++;
 
-bytesCurBlock += len;
+  bytesCurBlock += len;
 
-<span class="comment">//如果此package已满，则放入队列中准备发送</span>
+  <span class="comment">//如果此package已满，则放入队列中准备发送</span>
 
-<span class="keyword">if</span> (currentPacket<span class="built_in">.</span>numChunks == currentPacket<span class="built_in">.</span>maxChunks <span class="subst">||</span>
+  <span class="keyword">if</span> (currentPacket.numChunks == currentPacket.maxChunks ||
 
-    bytesCurBlock == blockSize) {
+      bytesCurBlock == blockSize) {
 
-    <span class="attribute">...</span><span class="attribute">...</span>
+      ......
 
-    dataQueue<span class="built_in">.</span>addLast(currentPacket);
+      dataQueue.addLast(currentPacket);
 
-    <span class="comment">//唤醒等待dataqueue的传输线程，也即DataStreamer</span>
-
-    dataQueue<span class="built_in">.</span>notifyAll();
-
-    currentPacket = <span class="built_in">null</span>;
-
-    <span class="attribute">...</span><span class="attribute">...</span>
-
-}
-</code></pre><p>  }</p>
-<p>DataStreamer的run函数如下：</p>
-<p>  public void run() {</p>
-<pre><code><span class="keyword">while</span> (!closed &amp;&amp; clientRunning) {
-
-  Packet one = <span class="keyword">null</span>;
-
-  <span class="keyword">synchronized</span> (dataQueue) {
-
-    <span class="comment">//如果队列中没有package，则等待</span>
-
-    <span class="keyword">while</span> ((!closed &amp;&amp; !hasError &amp;&amp; clientRunning
-
-           &amp;&amp; dataQueue.<span class="keyword">size</span>() == <span class="number">0</span>) || doSleep) {
-
-      <span class="keyword">try</span> {
-
-        dataQueue.wait(<span class="number">1000</span>);
-
-      } <span class="keyword">catch</span> (InterruptedException  e) {
-
-      }
-
-      doSleep = <span class="keyword">false</span>;
-
-    }
-
-    <span class="keyword">try</span> {
-
-      <span class="comment">//得到队列中的第一个package</span>
-
-      one = dataQueue.getFirst();
-
-      <span class="keyword">long</span> offsetInBlock = one.offsetInBlock;
-
-      <span class="comment">//由NameNode分配block，并生成一个写入流指向此block</span>
-
-      <span class="keyword">if</span> (blockStream == <span class="keyword">null</span>) {
-
-        nodes = nextBlockOutputStream(src);
-
-        response = <span class="keyword">new</span> ResponseProcessor(nodes);
-
-        response.start();
-
-      }
-
-      ByteBuffer buf = one.getBuffer();
-
-      <span class="comment">//将package从dataQueue移至ackQueue,等待确认</span>
-
-      dataQueue.removeFirst();
+      <span class="comment">//唤醒等待dataqueue的传输线程，也即DataStreamer</span>
 
       dataQueue.notifyAll();
 
-      <span class="keyword">synchronized</span> (ackQueue) {
+      currentPacket = <span class="keyword">null</span>;
 
-        ackQueue.addLast(one);
+      ......
 
-        ackQueue.notifyAll();
+  }
 
-      }
+  }
+
+
+DataStreamer的run函数如下：
+
+  <span class="keyword">public</span> <span class="keyword">void</span> run() {
+
+    <span class="keyword">while</span> (!closed &amp;&amp; clientRunning) {
+
+      Packet one = <span class="keyword">null</span>;
+
+      <span class="keyword">synchronized</span> (dataQueue) {
+
+        <span class="comment">//如果队列中没有package，则等待</span>
+
+        <span class="keyword">while</span> ((!closed &amp;&amp; !hasError &amp;&amp; clientRunning
+
+               &amp;&amp; dataQueue.<span class="keyword">size</span>() == <span class="number">0</span>) || doSleep) {
+
+          <span class="keyword">try</span> {
+
+            dataQueue.wait(<span class="number">1000</span>);
+
+          } <span class="keyword">catch</span> (InterruptedException  e) {
+
+          }
+
+          doSleep = <span class="keyword">false</span>;
+
+        }
+
+        <span class="keyword">try</span> {
+
+          <span class="comment">//得到队列中的第一个package</span>
+
+          one = dataQueue.getFirst();
+
+          <span class="keyword">long</span> offsetInBlock = one.offsetInBlock;
+
+          <span class="comment">//由NameNode分配block，并生成一个写入流指向此block</span>
+
+          <span class="keyword">if</span> (blockStream == <span class="keyword">null</span>) {
+
+            nodes = nextBlockOutputStream(src);
+
+            response = <span class="keyword">new</span> ResponseProcessor(nodes);
+
+            response.start();
+
+          }
+
+          ByteBuffer buf = one.getBuffer();
+
+          <span class="comment">//将package从dataQueue移至ackQueue,等待确认</span>
+
+          dataQueue.removeFirst();
+
+          dataQueue.notifyAll();
+
+          <span class="keyword">synchronized</span> (ackQueue) {
+
+            ackQueue.addLast(one);
+
+            ackQueue.notifyAll();
+
+          }
 
       <span class="comment">//利用生成的写入流将数据写入DataNode中的block</span>
 
@@ -809,10 +979,12 @@ bytesCurBlock += len;
   }
 
   ......
-</code></pre><p>  }</p>
-<p>其中重要的一个函数是nextBlockOutputStream，实现如下：</p>
-<p>  private DatanodeInfo[] nextBlockOutputStream(String client) throws IOException {</p>
-<pre><code>LocatedBlock lb = <span class="keyword">null</span>;
+
+ }
+</code></pre><p>其中重要的一个函数是nextBlockOutputStream，实现如下：</p>
+<pre><code> <span class="keyword">private</span> DatanodeInfo[] nextBlockOutputStream(String client) <span class="keyword">throws</span> IOException {
+
+LocatedBlock lb = <span class="keyword">null</span>;
 
 <span class="keyword">boolean</span> retry = <span class="keyword">false</span>;
 
@@ -843,19 +1015,25 @@ DatanodeInfo[] nodes;
 } <span class="keyword">while</span> (retry &amp;&amp; --<span class="keyword">count</span> &gt;= <span class="number">0</span>);
 
 <span class="keyword">return</span> nodes;
-</code></pre><p>  }</p>
-<p>locateFollowingBlock中通过RPC调用namenode.addBlock(src, clientName)函数</p>
+
+}
+</code></pre><p>locateFollowingBlock中通过RPC调用namenode.addBlock(src, clientName)函数</p>
 <p>3.4、NameNode<br>NameNode的addBlock函数实现如下：</p>
-<p>  public LocatedBlock addBlock(String src,</p>
-<pre><code>                           <span class="title">String</span> clientName) throws IOException {
+<pre><code> <span class="keyword">public</span> LocatedBlock addBlock(<span class="keyword">String</span> src,
 
-<span class="title">LocatedBlock</span> locatedBlock = namesystem.getAdditionalBlock(src, clientName);
+                           <span class="keyword">String</span> clientName) <span class="keyword">throws</span> IOException {
 
-<span class="title">return</span> locatedBlock;
-</code></pre><p>  }</p>
-<p>FSNamesystem的getAdditionalBlock实现如下：</p>
-<p>  public LocatedBlock getAdditionalBlock(String src,</p>
-<pre><code>                                     <span class="keyword">String</span> clientName
+    LocatedBlock locatedBlock = namesystem.getAdditionalBlock(src, clientName);
+
+    <span class="keyword">return</span> locatedBlock;
+
+  }
+
+FSNamesystem的getAdditionalBlock实现如下：
+
+  <span class="keyword">public</span> LocatedBlock getAdditionalBlock(<span class="keyword">String</span> src,
+
+                                     <span class="keyword">String</span> clientName
 
                                      ) <span class="keyword">throws</span> IOException {
 
@@ -900,83 +1078,86 @@ pendingFile.setTargets(targets);
 ......
 
 <span class="keyword">return</span> <span class="keyword">new</span> LocatedBlock(newBlock, targets, fileLength);
-</code></pre><p>  }</p>
-<p>3.5、客户端<br>在分配了DataNode和block以后，createBlockOutputStream开始写入数据。</p>
-<p>  private boolean createBlockOutputStream(DatanodeInfo[] nodes, String client,</p>
-<pre><code>            boolean recoveryFlag) {
-
-<span class="comment">//创建一个socket，链接DataNode</span>
-
-InetSocketAddress target = NetUtils.createSocketAddr(nodes[<span class="number">0</span>].getName());
-
-s = socketFactory.createSocket();
-
-<span class="keyword">int</span> timeoutValue = <span class="number">3000</span> * nodes.length + socketTimeout;
-
-s.connect(target, timeoutValue);
-
-s.setSoTimeout(timeoutValue);
-
-s.setSendBufferSize(DEFAULT_DATA_SOCKET_SIZE);
-
-<span class="keyword">long</span> writeTimeout = HdfsConstants.WRITE_TIMEOUT_EXTENSION * nodes.length +
-
-                    datanodeWriteTimeout;
-
-DataOutputStream <span class="keyword">out</span> = <span class="keyword">new</span> DataOutputStream(
-
-    <span class="keyword">new</span> BufferedOutputStream(NetUtils.getOutputStream(s, writeTimeout),
-
-                             DataNode.SMALL_BUFFER_SIZE));
-
-blockReplyStream = <span class="keyword">new</span> DataInputStream(NetUtils.getInputStream(s));
-
-<span class="comment">//写入指令</span>
-
-<span class="keyword">out</span>.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );
-
-<span class="keyword">out</span>.write( DataTransferProtocol.OP_WRITE_BLOCK );
-
-<span class="keyword">out</span>.writeLong( block.getBlockId() );
-
-<span class="keyword">out</span>.writeLong( block.getGenerationStamp() );
-
-<span class="keyword">out</span>.writeInt( nodes.length );
-
-<span class="keyword">out</span>.writeBoolean( recoveryFlag );
-
-Text.writeString( <span class="keyword">out</span>, client );
-
-<span class="keyword">out</span>.writeBoolean(<span class="keyword">false</span>);
-
-<span class="keyword">out</span>.writeInt( nodes.length - <span class="number">1</span> );
-
-<span class="comment">//注意，次循环从1开始，而非从0开始。将除了第一个DataNode以外的另外两个DataNode的信息发送给第一个DataNode, 第一个DataNode可以根据此信息将数据写给另两个DataNode</span>
-
-<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt; nodes.length; i++) {
-
-  nodes[i].write(<span class="keyword">out</span>);
 
 }
+</code></pre><p>3.5、客户端<br>在分配了DataNode和block以后，createBlockOutputStream开始写入数据。</p>
+<pre><code><span class="function"><span class="keyword">private</span> boolean <span class="title">createBlockOutputStream</span>(<span class="params">DatanodeInfo[] nodes, String client,
 
-checksum.writeHeader( <span class="keyword">out</span> );
+              boolean recoveryFlag</span>) </span>{
 
-<span class="keyword">out</span>.flush();
+  <span class="comment">//创建一个socket，链接DataNode</span>
 
-firstBadLink = Text.readString(blockReplyStream);
+  InetSocketAddress target = NetUtils.createSocketAddr(nodes[<span class="number">0</span>].getName());
 
-<span class="keyword">if</span> (firstBadLink.length() != <span class="number">0</span>) {
+  s = socketFactory.createSocket();
 
-  <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Bad connect ack with firstBadLink "</span> + firstBadLink);
+  <span class="keyword">int</span> timeoutValue = <span class="number">3000</span> * nodes.length + socketTimeout;
 
-}
+  s.connect(target, timeoutValue);
 
-blockStream = <span class="keyword">out</span>;
+  s.setSoTimeout(timeoutValue);
+
+  s.setSendBufferSize(DEFAULT_DATA_SOCKET_SIZE);
+
+  <span class="keyword">long</span> writeTimeout = HdfsConstants.WRITE_TIMEOUT_EXTENSION * nodes.length +
+
+                      datanodeWriteTimeout;
+
+  DataOutputStream <span class="keyword">out</span> = <span class="keyword">new</span> DataOutputStream(
+
+      <span class="keyword">new</span> BufferedOutputStream(NetUtils.getOutputStream(s, writeTimeout),
+
+                               DataNode.SMALL_BUFFER_SIZE));
+
+  blockReplyStream = <span class="keyword">new</span> DataInputStream(NetUtils.getInputStream(s));
+
+  <span class="comment">//写入指令</span>
+
+  <span class="keyword">out</span>.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );
+
+  <span class="keyword">out</span>.write( DataTransferProtocol.OP_WRITE_BLOCK );
+
+  <span class="keyword">out</span>.writeLong( block.getBlockId() );
+
+  <span class="keyword">out</span>.writeLong( block.getGenerationStamp() );
+
+  <span class="keyword">out</span>.writeInt( nodes.length );
+
+  <span class="keyword">out</span>.writeBoolean( recoveryFlag );
+
+  Text.writeString( <span class="keyword">out</span>, client );
+
+  <span class="keyword">out</span>.writeBoolean(<span class="keyword">false</span>);
+
+  <span class="keyword">out</span>.writeInt( nodes.length - <span class="number">1</span> );
+
+  <span class="comment">//注意，次循环从1开始，而非从0开始。将除了第一个DataNode以外的另外两个DataNode的信息发送给第一个DataNode, 第一个DataNode可以根据此信息将数据写给另两个DataNode</span>
+
+  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt; nodes.length; i++) {
+
+    nodes[i].write(<span class="keyword">out</span>);
+
+  }
+
+  checksum.writeHeader( <span class="keyword">out</span> );
+
+  <span class="keyword">out</span>.flush();
+
+  firstBadLink = Text.readString(blockReplyStream);
+
+  <span class="keyword">if</span> (firstBadLink.length() != <span class="number">0</span>) {
+
+    <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Bad connect ack with firstBadLink "</span> + firstBadLink);
+
+  }
+
+  blockStream = <span class="keyword">out</span>;
 </code></pre><p>  }</p>
 <p>客户端在DataStreamer的run函数中创建了写入流后，调用blockStream.write将数据写入DataNode</p>
-<p>3.6、DataNode<br>DataNode的DataXceiver中，收到指令DataTransferProtocol.OP_WRITE_BLOCK则调用writeBlock函数：</p>
-<p>  private void writeBlock(DataInputStream in) throws IOException {</p>
-<pre><code>DatanodeInfo srcDataNode = <span class="keyword">null</span>;
+<p>3.6、DataNode<br>    DataNode的DataXceiver中，收到指令DataTransferProtocol.OP_WRITE_BLOCK则调用writeBlock函数：</p>
+<pre><code>private <span class="keyword">void</span> writeBlock(DataInputStream <span class="keyword">in</span>) throws IOException {
+
+DatanodeInfo srcDataNode = <span class="keyword">null</span>;
 
 <span class="comment">//读入头信息</span>
 
@@ -1155,108 +1336,111 @@ BlockReceiver blockReceiver = <span class="keyword">null</span>; <span class="co
   IOUtils.closeStream(blockReceiver);
 
 }
-</code></pre><p>  }</p>
-<p>BlockReceiver的receiveBlock函数中，一段重要的逻辑如下：</p>
-<p>  void receiveBlock(</p>
-<pre><code>DataOutputStream mirrOut, <span class="comment">// output to next datanode</span>
 
-DataInputStream mirrIn,   <span class="comment">// input from next datanode</span>
+}
+</code></pre><p>BlockReceiver的receiveBlock函数中，一段重要的逻辑如下：</p>
+<pre><code><span class="function"><span class="keyword">void</span> <span class="title">receiveBlock</span><span class="params">(
 
-DataOutputStream replyOut,  <span class="comment">// output to previous datanode</span>
+  DataOutputStream mirrOut, <span class="comment">// output to next datanode</span>
 
-<span class="built_in">String</span> mirrAddr, BlockTransferThrottler throttlerArg,
+  DataInputStream mirrIn,   <span class="comment">// input from next datanode</span>
 
-int numTargets) throws IOException {
+  DataOutputStream replyOut,  <span class="comment">// output to previous datanode</span>
 
-<span class="attribute">...</span><span class="attribute">...</span>
+  String mirrAddr, BlockTransferThrottler throttlerArg,
 
-<span class="comment">//不断的接受package，直到结束</span>
+  <span class="keyword">int</span> numTargets)</span> throws IOException </span>{
 
-<span class="keyword">while</span> (receivePacket() &gt; <span class="number">0</span>) {}
+  ......
 
-<span class="keyword">if</span> (mirrorOut != <span class="built_in">null</span>) {
+  <span class="comment">//不断的接受package，直到结束</span>
 
-  try {
+  <span class="keyword">while</span> (receivePacket() &gt; <span class="number">0</span>) {}
 
-    mirrorOut<span class="built_in">.</span>writeInt(<span class="number">0</span>); <span class="comment">// mark the end of the block</span>
+  <span class="keyword">if</span> (mirrorOut != null) {
 
-    mirrorOut<span class="built_in">.</span>flush();
+    <span class="keyword">try</span> {
 
-  } catch (IOException e) {
+      mirrorOut.writeInt(<span class="number">0</span>); <span class="comment">// mark the end of the block</span>
 
-    handleMirrorOutErr<span class="subst">or</span>(e);
+      mirrorOut.flush();
+
+    } <span class="keyword">catch</span> (IOException e) {
+
+      handleMirrorOutError(e);
+
+    }
 
   }
 
-}
-
-<span class="attribute">...</span><span class="attribute">...</span>
+  ......
 </code></pre><p>  }</p>
 <p>BlockReceiver的receivePacket函数如下：</p>
-<p>  private int receivePacket() throws IOException {</p>
-<pre><code><span class="comment">//从客户端或者上一个节点接收一个package</span>
+<pre><code> <span class="keyword">private</span> <span class="function"><span class="keyword">int</span> <span class="title">receivePacket</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>{
 
-int payloadLen <span class="keyword">=</span> readNextPacket();
+<span class="comment">//从客户端或者上一个节点接收一个package</span>
 
-<span class="keyword">buf</span><span class="typename">.mark</span>();
+<span class="keyword">int</span> payloadLen = readNextPacket();
+
+buf.mark();
 
 <span class="comment">//read the header</span>
 
-<span class="keyword">buf</span><span class="typename">.getInt</span>(); <span class="comment">// packet length</span>
+buf.getInt(); <span class="comment">// packet length</span>
 
-offsetInBlock <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.getLong</span>(); <span class="comment">// get offset of packet in block</span>
+offsetInBlock = buf.getLong(); <span class="comment">// get offset of packet in block</span>
 
-long seqno <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.getLong</span>();    <span class="comment">// get seqno</span>
+<span class="keyword">long</span> seqno = buf.getLong();    <span class="comment">// get seqno</span>
 
-boolean lastPacketInBlock <span class="keyword">=</span> (<span class="keyword">buf</span><span class="typename">.get</span>() <span class="keyword">!</span><span class="keyword">=</span> <span class="number">0</span>);
+<span class="keyword">boolean</span> lastPacketInBlock = (buf.get() != <span class="number">0</span>);
 
-int endOfHeader <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.position</span>();
+<span class="keyword">int</span> endOfHeader = buf.position();
 
-<span class="keyword">buf</span><span class="typename">.reset</span>();
+buf.reset();
 
 setBlockPosition(offsetInBlock);
 
 <span class="comment">//将package写入下一个DataNode</span>
 
-<span class="keyword">if</span> (mirrorOut <span class="keyword">!</span><span class="keyword">=</span> null) <span class="keyword">{</span>
+<span class="keyword">if</span> (mirrorOut != <span class="keyword">null</span>) {
 
-  try <span class="keyword">{</span>
+  <span class="keyword">try</span> {
 
-    mirrorOut<span class="typename">.write</span>(<span class="keyword">buf</span><span class="typename">.array</span>(), <span class="keyword">buf</span><span class="typename">.position</span>(), <span class="keyword">buf</span><span class="typename">.remaining</span>());
+    mirrorOut.write(buf.array(), buf.position(), buf.remaining());
 
-    mirrorOut<span class="typename">.flush</span>();
+    mirrorOut.flush();
 
-  <span class="keyword">}</span> catch (IOException e) <span class="keyword">{</span>
+  } <span class="keyword">catch</span> (IOException e) {
 
     handleMirrorOutError(e);
 
-  <span class="keyword">}</span>
+  }
 
-<span class="keyword">}</span>
+}
 
-<span class="keyword">buf</span><span class="typename">.position</span>(endOfHeader);       
+buf.position(endOfHeader);       
 
-int len <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.getInt</span>();
+<span class="keyword">int</span> len = buf.getInt();
 
-offsetInBlock <span class="keyword">+</span><span class="keyword">=</span> len;
+offsetInBlock += len;
 
-int checksumLen <span class="keyword">=</span> ((len <span class="keyword">+</span> bytesPerChecksum <span class="keyword">-</span> <span class="number">1</span>)<span class="keyword">/</span>bytesPerChecksum)<span class="keyword">*</span>
+<span class="keyword">int</span> checksumLen = ((len + bytesPerChecksum - <span class="number">1</span>)/bytesPerChecksum)*
 
                                                         checksumSize;
 
-int checksumOff <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.position</span>();
+<span class="keyword">int</span> checksumOff = buf.position();
 
-int dataOff <span class="keyword">=</span> checksumOff <span class="keyword">+</span> checksumLen;
+<span class="keyword">int</span> dataOff = checksumOff + checksumLen;
 
-byte pktBuf[] <span class="keyword">=</span> <span class="keyword">buf</span><span class="typename">.array</span>();
+<span class="keyword">byte</span> pktBuf[] = buf.array();
 
-<span class="keyword">buf</span><span class="typename">.position</span>(<span class="keyword">buf</span><span class="typename">.limit</span>()); <span class="comment">// move to the end of the data.</span>
+buf.position(buf.limit()); <span class="comment">// move to the end of the data.</span>
 
 ......
 
 <span class="comment">//将数据写入本地的block</span>
 
-out<span class="typename">.write</span>(pktBuf, dataOff, len);
+out.write(pktBuf, dataOff, len);
 
 <span class="comment">/// flush entire packet before sending ack</span>
 
@@ -1264,22 +1448,23 @@ flush();
 
 <span class="comment">// put in queue for pending acks</span>
 
-<span class="keyword">if</span> (responder <span class="keyword">!</span><span class="keyword">=</span> null) <span class="keyword">{</span>
+<span class="keyword">if</span> (responder != <span class="keyword">null</span>) {
 
-  ((PacketResponder)responder<span class="typename">.getRunnable</span>())<span class="typename">.enqueue</span>(seqno,
+  ((PacketResponder)responder.getRunnable()).enqueue(seqno,
 
                                   lastPacketInBlock);
 
-<span class="keyword">}</span>
+}
 
-return payloadLen;
-</code></pre><p>  }</p>
+<span class="keyword">return</span> payloadLen;
 
+}
+</code></pre>
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-读写分析/" data-id="cihftfwfk0004fuyn51xt8ndu" class="article-share-link" data-share="baidu" data-title="hadoop 读写分析">分享到</a>
+        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-读写分析/" data-id="cihfto8oa0004h6yn6olf3gcv" class="article-share-link" data-share="baidu" data-title="hadoop 读写分析">分享到</a>
       
 
       
