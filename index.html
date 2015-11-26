@@ -105,7 +105,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hello-world/" data-id="cihfsdhpx00036jynynwqzfjn" class="article-share-link" data-share="baidu" data-title="Hello World">分享到</a>
+        <a data-url="http://linrunzhang.github.io/2015/11/26/hello-world/" data-id="cihfsjlc800037nynd5rbwnlv" class="article-share-link" data-share="baidu" data-title="Hello World">分享到</a>
       
 
       
@@ -141,9 +141,9 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>hadoop的心跳过程：</p>
-<p>1) master启动的时候，会开一个ipc server在那里。<br>2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
+<p> 1) master启动的时候，会开一个ipc server在那里。<br> 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
 <p>2、找到心跳的代码</p>
-<p>拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
+<p> 拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
 <pre><code><span class="comment">/** 
 * Main loop for the DataNode.  Runs until shutdown, 
 * forever calling remote NameNode functions. 
@@ -331,7 +331,7 @@ dfs<span class="class">.namenode</span><span class="class">.stale</span><span cl
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihfsdhpj00006jyn7fpmcf8e" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
+        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihfsjlbu00007nyns64zq7ns" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
       
 
       

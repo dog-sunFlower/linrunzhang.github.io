@@ -7,24 +7,24 @@
   <title>hadoop heatbeats | FrankLin&#39;s World</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="hadoop的心跳过程：
-1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
+ 1) master启动的时候，会开一个ipc server在那里。 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
 2、找到心跳的代码
-拿namenode和datanode来说，在datanode的offerService方法中">
+ 拿namenode和datanode来说，在datanode的offerService">
 <meta property="og:type" content="article">
 <meta property="og:title" content="hadoop heatbeats">
 <meta property="og:url" content="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/index.html">
 <meta property="og:site_name" content="FrankLin's World">
 <meta property="og:description" content="hadoop的心跳过程：
-1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
+ 1) master启动的时候，会开一个ipc server在那里。 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
 2、找到心跳的代码
-拿namenode和datanode来说，在datanode的offerService方法中">
-<meta property="og:updated_time" content="2015-11-26T04:55:40.000Z">
+ 拿namenode和datanode来说，在datanode的offerService">
+<meta property="og:updated_time" content="2015-11-26T05:18:40.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="hadoop heatbeats">
 <meta name="twitter:description" content="hadoop的心跳过程：
-1) master启动的时候，会开一个ipc server在那里。2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
+ 1) master启动的时候，会开一个ipc server在那里。 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。
 2、找到心跳的代码
-拿namenode和datanode来说，在datanode的offerService方法中">
+ 拿namenode和datanode来说，在datanode的offerService">
   
     <link rel="alternative" href="/atom.xml" title="FrankLin&#39;s World" type="application/atom+xml">
   
@@ -100,9 +100,9 @@
     <div class="article-entry" itemprop="articleBody">
       
         <p>hadoop的心跳过程：</p>
-<p>1) master启动的时候，会开一个ipc server在那里。<br>2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
+<p> 1) master启动的时候，会开一个ipc server在那里。<br> 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
 <p>2、找到心跳的代码</p>
-<p>拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
+<p> 拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
 <pre><code><span class="comment">/** 
 * Main loop for the DataNode.  Runs until shutdown, 
 * forever calling remote NameNode functions. 
@@ -290,7 +290,7 @@ dfs<span class="class">.namenode</span><span class="class">.stale</span><span cl
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihfsdhpj00006jyn7fpmcf8e" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
+        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihfsjlbu00007nyns64zq7ns" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
       
 
       
