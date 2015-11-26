@@ -4,17 +4,35 @@
 <head>
   <meta charset="utf-8">
   
-  <title>FrankLin&#39;s World</title>
+  <title>hadoop 读写分析 | FrankLin&#39;s World</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description">
-<meta property="og:type" content="website">
-<meta property="og:title" content="FrankLin's World">
-<meta property="og:url" content="http://linrunzhang.github.io/index.html">
+  <meta name="description" content="一、文件的打开
+
+ 
+1.1、客户端HDFS打开一个文件，需要在客户端调用DistributedFileSystem.open(Path f, int bufferSize)，其实现为：
+public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+return new DFSClient.DFSDataInp">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hadoop 读写分析">
+<meta property="og:url" content="http://linrunzhang.github.io/2015/11/26/hadoop-读写分析/index.html">
 <meta property="og:site_name" content="FrankLin's World">
-<meta property="og:description">
+<meta property="og:description" content="一、文件的打开
+
+ 
+1.1、客户端HDFS打开一个文件，需要在客户端调用DistributedFileSystem.open(Path f, int bufferSize)，其实现为：
+public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+return new DFSClient.DFSDataInp">
+<meta property="og:image" content="https://github.com/linrunzhang/linrunzhang.github.io/blob/master/resource/hadoop_read.png">
+<meta property="og:image" content="https://github.com/linrunzhang/linrunzhang.github.io/blob/master/resource/hadoop_write.png">
+<meta property="og:updated_time" content="2015-11-26T05:44:40.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="FrankLin's World">
-<meta name="twitter:description">
+<meta name="twitter:title" content="hadoop 读写分析">
+<meta name="twitter:description" content="一、文件的打开
+
+ 
+1.1、客户端HDFS打开一个文件，需要在客户端调用DistributedFileSystem.open(Path f, int bufferSize)，其实现为：
+public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+return new DFSClient.DFSDataInp">
   
     <link rel="alternative" href="/atom.xml" title="FrankLin&#39;s World" type="application/atom+xml">
   
@@ -67,9 +85,7 @@
   </div>
 </header>
     <div class="outer">
-      <section id="main">
-  
-    <article id="post-hadoop-读写分析" class="article article-type-post" itemscope itemprop="blogPost">
+      <section id="main"><article id="post-hadoop-读写分析" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2015/11/26/hadoop-读写分析/" class="article-date">
   <time datetime="2015-11-26T05:32:27.000Z" itemprop="datePublished">2015-11-26</time>
@@ -82,8 +98,8 @@
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/11/26/hadoop-读写分析/">hadoop 读写分析</a>
+    <h1 class="article-title" itemprop="name">
+      hadoop 读写分析
     </h1>
   
 
@@ -1274,288 +1290,20 @@ return payloadLen;
     </footer>
   </div>
   
-</article>
-
-
+    
+<nav id="article-nav">
   
-    <article id="post-hadoop-heatbeats" class="article article-type-post" itemscope itemprop="blogPost">
-  <div class="article-meta">
-    <a href="/2015/11/26/hadoop-heatbeats/" class="article-date">
-  <time datetime="2015-11-26T02:52:36.000Z" itemprop="datePublished">2015-11-26</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/11/26/hadoop-heatbeats/">hadoop heatbeats</a>
-    </h1>
+    <a href="/2015/11/26/hadoop-heatbeats/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">hadoop heatbeats</div>
+    </a>
   
+</nav>
 
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>hadoop的心跳过程：</p>
-<p> 1) master启动的时候，会开一个ipc server在那里。<br> 2) slave启动时，会连接master，并每隔3秒钟主动向master发送一个“心跳”，将自己的状态信息告诉master，然后master也是通过这个心跳的返回值，向slave节点传达指令。</p>
-<p>2、找到心跳的代码</p>
-<p> 拿namenode和datanode来说，在datanode的offerService方法中，每隔3秒向namenode发送心跳的代码：</p>
-<pre><code><span class="comment">/** 
-* Main loop for the DataNode.  Runs until shutdown, 
-* forever calling remote NameNode functions. 
-*/</span>  
-<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">offerService</span>(<span class="params"></span>) throws Exception </span>{  
-...  
-<span class="comment">//  </span>
-<span class="comment">// Now loop for a long time....  </span>
-<span class="comment">//  </span>
-<span class="keyword">while</span> (shouldRun) {  
- <span class="keyword">try</span> {  
-   <span class="keyword">long</span> startTime = now();  
-
-   <span class="comment">//  </span>
-   <span class="comment">// Every so often, send heartbeat or block-report  </span>
-   <span class="comment">//  </span>
-
-<span class="comment">// 如果到了3秒钟，就向namenode发心跳  </span>
-<span class="keyword">if</span> (startTime - lastHeartbeat &gt; heartBeatInterval) {  
-   <span class="comment">//  </span>
-   <span class="comment">// All heartbeat messages include following info:  </span>
-   <span class="comment">// -- Datanode name  </span>
-   <span class="comment">// -- data transfer port  </span>
-   <span class="comment">// -- Total capacity  </span>
-   <span class="comment">// -- Bytes remaining  </span>
-   <span class="comment">//  </span>
-   lastHeartbeat = startTime;  
-   DatanodeCommand[] cmds = namenode.sendHeartbeat(dnRegistration,  
-                                                data.getCapacity(),  
-                                                data.getDfsUsed(),  
-                                                data.getRemaining(),  
-                                                xmitsInProgress.<span class="keyword">get</span>(),  
-                                                getXceiverCount());  
-
-<span class="comment">// 注意上面这行代码，“发送心跳”竟然就是调用namenode的一个方法？？  </span>
-
-myMetrics.heartbeats.inc(now() - startTime);  
-<span class="comment">//LOG.info("Just sent heartbeat, with name " + localName);  </span>
-
-<span class="comment">// 处理对心跳的返回值（namenode传给datanode的指令）  </span>
-<span class="keyword">if</span> (!processCommand(cmds))  
-       <span class="keyword">continue</span>;  
-}  
-
-<span class="comment">// 这里省略很多代码  </span>
-...  
-} <span class="comment">// while (shouldRun)  </span>
-} <span class="comment">// offerService  </span>
-</code></pre><p>上面这段代码，如果是单机的程序，没什么值得奇怪的。但是，这是hadoop集群！datanode和namenode在2台不同的机器（或2个JVM）上运行！datanode机器竟然直接调用namenode的方法！这是怎么实现的？难道是传说中的RMI吗？？</p>
-<p>下面我们主要就来分析这个方法调用的细节。</p>
-<p>3、心跳的底层细节一：datanode怎么获得namenode对象的？</p>
-<p>首先，DataNode类中，有一个namenode的成员变量：</p>
-<pre><code>public <span class="class"><span class="keyword">class</span> <span class="title">DataNode</span> <span class="keyword"><span class="keyword">extends</span></span> <span class="title">Configured</span>   
-</span>implements <span class="type">InterDatanodeProtocol</span>, <span class="type">ClientDatanodeProtocol</span>, <span class="type">FSConstants</span>, <span class="type">Runnable</span> {  
-...  
-public <span class="type">DatanodeProtocol</span> namenode = <span class="literal">null</span>;  
-...   
-}  
-</code></pre><p>下面是NameNode类的定义：</p>
-<pre><code><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">NameNode</span> <span class="title">implements</span> <span class="title">ClientProtocol</span>, <span class="typename">DatanodeProtocol</span>,  
-                             <span class="typename">NamenodeProtocol</span>, <span class="typename">FSConstants</span>,  
-                             <span class="typename">RefreshAuthorizationPolicyProtocol {  </span></span>
-...   
-}  
-</code></pre><p>注意：NameNode实现了DatanodeProtocol接口，DatanodeProtocol接口定义了namenode和datanode之间通信的方法。</p>
-<p>那么，DataNode类是怎么获取到NameNode类的引用呢？</p>
-<p>在Datanode端，为namenode变量赋值的代码：</p>
-<pre><code>// connect to name <span class="keyword">node</span><span class="identifier">  
-</span><span class="title">this</span>.namenode = (DatanodeProtocol)   
-RPC.waitForProxy(DatanodeProtocol.class,  
-               DatanodeProtocol.versionID,  
-               nameNodeAddr,   
-               conf);  
-</code></pre><p>在继续去RPC类中追踪：在继续去RPC类中追踪：</p>
-<pre><code>VersionedProtocol proxy =  
-    (VersionedProtocol) Proxy.newProxyInstance(  
-        protocol.getClassLoader(), <span class="keyword">new</span> <span class="class"><span class="keyword">Class</span>[] { <span class="title">protocol</span> },  </span>
-        <span class="keyword">new</span> Invoker(addr, ticket, conf, factory));  
-</code></pre><p>现在，明白了！<br>1) 对namenode的赋值，并不是真正的new了一个实现了DatanodeProtocol接口的对象，而是获得了一个动态代理！！<br>2) 上面这段代码中，protocol的类型是DatanodeProtocol.class<br>3) 对namenode的所有调用，都被委托(delegate)给了Invoker<br>现在，明白了！<br>1) 对namenode的赋值，并不是真正的new了一个实现了DatanodeProtocol接口的对象，而是获得了一个动态代理！！<br>2) 上面这段代码中，protocol的类型是DatanodeProtocol.class<br>3) 对namenode的所有调用，都被委托(delegate)给了Invoker<br>4、心跳的底层细节二：看看Invoker类<br>Invoker类是org.apache.hadoop.ipc.RPC类的一个静态内部类： </p>
-<pre><code>private <span class="keyword">static</span> class <span class="type">Invoker</span> implements <span class="type">InvocationHandler</span> {  
-
-
-//所有的方法调用又被delegate给client的call方法了！
-
-public <span class="type">Object</span> invoke(<span class="type">Object</span> proxy, <span class="type">Method</span> <span class="keyword">method</span>, <span class="type">Object</span>[] args) throws <span class="type">Throwable</span> {  
-        ...  
-
-          <span class="type">ObjectWritable</span> value = (<span class="type">ObjectWritable</span>)  
-            client.call(new <span class="type">Invocation</span>(<span class="keyword">method</span>, args), address,   
-                        <span class="keyword">method</span>.getDeclaringClass(), ticket);  
-            ...  
-          <span class="keyword">return</span> value.get();  
-       }  
-
-//client是<span class="type">Invoker</span>中的成员变量：
-private <span class="type">Client</span> client;  
-</code></pre><p>所以可以看出：DatanodeProtocol中的每个方法调用，都被包装成一个Invocation对象，再由client.call()调用</p>
-<p>5、心跳的底层细节三：Invocation类</p>
-<p>Invocation类是org.apache.hadoop.ipc.RPC类的一个静态内部类</p>
-<p>没有什么业务逻辑方法，主要作用就是一个VO</p>
-<p>6、心跳的底层细节四：client类的call方法</p>
-<p>接下来重点看client类的call方法：</p>
-<pre><code><span class="keyword">public</span> Writable <span class="keyword">call</span>(Writable param, InetSocketAddress addr,<span class="keyword">Class</span>&lt;?&gt; protocol, UserGroupInformation ticket)    
-                 <span class="keyword">throws</span> InterruptedException, IOException {  
-<span class="keyword">Call</span> <span class="keyword">call</span> = <span class="keyword">new</span> <span class="keyword">Call</span>(param);     
-<span class="comment">// 将Invocation转化为Call  </span>
-Connection connection = getConnection(addr, protocol, ticket, <span class="keyword">call</span>);  
-<span class="comment">// 连接远程服务器  </span>
-connection.sendParam(<span class="keyword">call</span>);                 <span class="comment">// send the parameter  </span>
-<span class="comment">// 将“序列化”后的call发给过去  </span>
-<span class="keyword">boolean</span> interrupted = <span class="keyword">false</span>;  
-<span class="keyword">synchronized</span> (<span class="keyword">call</span>) {  
-<span class="keyword">while</span> (!<span class="keyword">call</span>.done) {  
-  <span class="keyword">try</span> {  
-    <span class="keyword">call</span>.wait();                           <span class="comment">// wait for the result  </span>
-<span class="comment">// 等待调用结果  </span>
-  } <span class="keyword">catch</span> (InterruptedException ie) {  
-    <span class="comment">// save the fact that we were interrupted  </span>
-    interrupted = <span class="keyword">true</span>;  
-  }  
-}  
-
-<span class="keyword">if</span> (interrupted) {  
-  <span class="comment">// set the interrupt flag now that we are done waiting  </span>
-  Thread.currentThread().interrupt();  
-}  
-
-<span class="keyword">if</span> (<span class="keyword">call</span>.error != <span class="keyword">null</span>) {  
-  <span class="keyword">if</span> (<span class="keyword">call</span>.error <span class="keyword">instanceof</span> RemoteException) {  
-    <span class="keyword">call</span>.error.fillInStackTrace();  
-    <span class="keyword">throw</span> <span class="keyword">call</span>.error;  
-  } <span class="keyword">else</span> { <span class="comment">// local exception  </span>
-    <span class="keyword">throw</span> wrapException(addr, <span class="keyword">call</span>.error);  
-  }  
-} <span class="keyword">else</span> {  
-  <span class="keyword">return</span> <span class="keyword">call</span>.value;  
-<span class="comment">// 返回  </span>
-}  
-} 
-}  
-</code></pre><p>7、现在，一目了然了</p>
-<p>datanode向namenode发送heartbeat过程是这样的：  </p>
-<pre><code><span class="title">a</span>) 在datanode初始化获得namenode的proxy  
-<span class="title">b</span>) 在datanode上，调用namenode proxy的heartbeat方法：  
-    namenode.sendHeartbeat(dnRegistration,  
-                           <span class="typedef"><span class="keyword">data</span>.getCapacity<span class="container">()</span>,  </span>
-                           <span class="typedef"><span class="keyword">data</span>.getDfsUsed<span class="container">()</span>,  </span>
-                           <span class="typedef"><span class="keyword">data</span>.getRemaining<span class="container">()</span>,  </span>
-                           xmitsInProgress.get(),  
-                           getXceiverCount());  
-<span class="title">c</span>) 在datanode上的namenode动态代理类将这个调用包装成(或者叫“序列化成”)一个<span class="type">Invocation</span>对象，并调用client.call方法  
-<span class="title">d</span>) client call方法将<span class="type">Invocation</span>转化为<span class="type">Call</span>对象  
-<span class="title">e</span>) client 将call发送到真正的namenode服务器  
-<span class="title">f</span>) namenode接收后，转化成namenode端的<span class="type">Call</span>，并process后，通过<span class="type">Responder</span>发回来！  
-<span class="title">g</span>) datanode接收结果，并将结果转化为<span class="type">DatanodeCommand</span>[]  
-</code></pre><p>8、再看动态代理</p>
-<p>动态代理：让“只有接口，没事对应的实现类”成为可能，因为具体方法的实现可以委托给另一个类！！</p>
-<p>在这个例子中，就datanode而言，DatanodeProtocol接口是没有实现类的！</p>
-<p>9、观Hadoop HDFS 心跳时间</p>
-<p>datenode以固定周期向namenode发送心跳，namenode如果在一段时间内没有收到心跳，就会标记datenode为宕机。 此段时间的计算公式是：</p>
-<pre><code>timeout  = <span class="number">2</span> * heartbeat.recheck.interval + <span class="number">10</span> * dfs.heartbeat.interval
-</code></pre><p>默认 heartbeat.recheck.interval 是5分钟，dfs.heartbeat.interval是3秒，所以DN挂了后，NN要确定DN为DEAR需要10min30s，也就是630S自动标识为dead。</p>
-<pre><code><span class="variable">&lt;property&gt;</span>
-<span class="variable">&lt;name&gt;</span>dfs.heartbeat.interval<span class="variable">&lt;/name&gt;</span>
-<span class="variable">&lt;value&gt;</span><span class="number">3</span><span class="variable">&lt;/value&gt;</span> 
-<span class="variable">&lt;description&gt;</span>Determines datanode heartbeat interval <span class="keyword">in</span> seconds.<span class="variable">&lt;/description&gt;</span> 
-<span class="variable">&lt;/property&gt;</span>
-
-<span class="variable">&lt;property&gt;</span>
-<span class="variable">&lt;name&gt;</span>dfs.heartbeat.recheck.interval<span class="variable">&lt;/name&gt;</span>
-<span class="variable">&lt;value&gt;</span><span class="number">20000</span><span class="variable">&lt;/value&gt;</span>
-<span class="variable">&lt;description&gt;</span>Determines when machines are marked dead 单位：毫秒！！！<span class="variable">&lt;/description&gt;</span> 
-<span class="variable">&lt;/property&gt;</span>
-</code></pre><p>查看NN的日志</p>
-<pre><code><span class="number">2014</span>-<span class="number">04</span>-<span class="number">02</span> <span class="number">12</span>:<span class="number">24</span>:<span class="number">33</span>,<span class="number">464</span> INFO org<span class="class">.apache</span><span class="class">.hadoop</span><span class="class">.hdfs</span><span class="class">.server</span><span class="class">.blockmanagement</span><span class="class">.HeartbeatManager</span>: Setting heartbeat recheck interval to <span class="number">30000</span> since dfs<span class="class">.namenode</span><span class="class">.stale</span><span class="class">.datanode</span><span class="class">.interval</span> is less than dfs<span class="class">.namenode</span><span class="class">.heartbeat</span><span class="class">.recheck-interval</span> 
-预计检测时间是=<span class="number">2</span>*<span class="number">20</span>+<span class="number">10</span>*<span class="number">3</span>=<span class="number">70</span>，结果发现一台DN down了后，NN检测到的时间还是超过了<span class="number">70</span>秒，最终标记DN为dead的时间是<span class="number">660</span>秒，也就是说这项配置根本就没起作用。接下来我把rechekc的参数设置成<span class="number">100000</span>（也就是<span class="number">100</span>秒），最终发现NN检测到DN挂了确实是用了<span class="number">2</span>*<span class="number">100</span>+<span class="number">10</span>*<span class="number">3</span> = <span class="number">230</span>秒。接下来再来解决第一个疑问， 看看什么是dfs<span class="class">.namenode</span><span class="class">.stale</span><span class="class">.datanode</span><span class="class">.interval</span>，这里引进了一个状态叫做“stale”
-
-DataNodes are marked as stale <span class="keyword">if</span> it does not send heartbeat message to NameNode within the timeout configured using the configuration parameter <span class="string">"dfs.namenode.stale.datanode.interval"</span> <span class="keyword">in</span> seconds (default value is <span class="number">30</span> seconds). 
-
-dfs<span class="class">.namenode</span><span class="class">.stale</span><span class="class">.datanode</span><span class="class">.interval</span> = <span class="number">30000</span>
-</code></pre><p>而且默认情况下这个stale特性是关闭的，还需要把<br>    dfs.namenode.check.stale.datanode = true<br>只有把这两项都配置上去，再结合上面的heartbeat才能正常work，否则的话就把dfs.heartbeat.recheck.<br>    interval设置成30秒以上吧。因为如果时间太多，那么对于NN来说是要不断更新状态的，负载太高。可以看一段dfs.namenode.stale.datanode.interval的说明</p>
-<pre><code>Default <span class="built_in">time</span> interval <span class="keyword">for</span> marking <span class="operator">a</span> datanode <span class="keyword">as</span> <span class="string">"stale"</span>, i.e., <span class="keyword">if</span> <span class="operator">the</span> namenode has <span class="operator">not</span> received heartbeat msg <span class="built_in">from</span> <span class="operator">a</span> datanode <span class="keyword">for</span> more than this <span class="built_in">time</span> interval, <span class="operator">the</span> datanode will be marked <span class="operator">and</span> treated <span class="keyword">as</span> <span class="string">"stale"</span> <span class="keyword">by</span> default. The stale interval cannot be too small since otherwise this may cause too frequent change <span class="operator">of</span> stale states. We thus <span class="built_in">set</span> <span class="operator">a</span> minimum stale interval <span class="built_in">value</span> (<span class="operator">the</span> default <span class="built_in">value</span> is <span class="number">3</span> times <span class="operator">of</span> heartbeat interval) <span class="operator">and</span> guarantee that <span class="operator">the</span> stale interval cannot be less than <span class="operator">the</span> minimum <span class="built_in">value</span>. A stale data node is avoided during lease/block recovery. It can be conditionally avoided <span class="keyword">for</span> reads (see dfs.namenode.avoid.<span class="built_in">read</span>.stale.datanode) <span class="operator">and</span> <span class="keyword">for</span> writes (see dfs.namenode.avoid.<span class="built_in">write</span>.stale.datanode).
-</code></pre>
-      
-    </div>
-    <footer class="article-footer">
-      
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hadoop-heatbeats/" data-id="cihftfweb0000fuyn9kagwxwi" class="article-share-link" data-share="baidu" data-title="hadoop heatbeats">分享到</a>
-      
-
-      
-
-      
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hadoop-deep-learning/">hadoop deep learning</a></li></ul>
-
-    </footer>
-  </div>
   
 </article>
 
-
-  
-    <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
-  <div class="article-meta">
-    <a href="/2015/11/26/hello-world/" class="article-date">
-  <time datetime="2015-11-26T02:10:10.000Z" itemprop="datePublished">2015-11-26</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/11/26/hello-world/">Hello World</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick_Start">Quick Start</h2><h3 id="Create_a_new_post">Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run_server">Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate_static_files">Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      
-        <a data-url="http://linrunzhang.github.io/2015/11/26/hello-world/" data-id="cihftfwfc0003fuynghwymopt" class="article-share-link" data-share="baidu" data-title="Hello World">分享到</a>
-      
-
-      
-
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-  
-  
 </section>
       
       <aside id="sidebar">
